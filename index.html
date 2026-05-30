@@ -218,7 +218,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg
   <div id="panel-signup" style="width:100%;display:none;flex-direction:column;gap:10px">
     <input id="su-user" type="text" autocomplete="username" maxlength="32" placeholder="Choose a username"
       style="width:100%;padding:14px 16px;font-size:15px;background:var(--s2);border:1px solid var(--bo2);border-radius:12px;color:var(--t);outline:none;font-family:-apple-system,sans-serif">
-    <input id="su-pass" type="password" autocomplete="new-password" maxlength="64" placeholder="Password (min 6 characters)"
+    <input id="su-pass" type="password" autocomplete="new-password" maxlength="64" placeholder="Password (min 4 characters)"
       style="width:100%;padding:14px 16px;font-size:15px;background:var(--s2);border:1px solid var(--bo2);border-radius:12px;color:var(--t);outline:none;font-family:-apple-system,sans-serif">
     <input id="su-pass2" type="password" autocomplete="new-password" maxlength="64" placeholder="Confirm password"
       style="width:100%;padding:14px 16px;font-size:15px;background:var(--s2);border:1px solid var(--bo2);border-radius:12px;color:var(--t);outline:none;font-family:-apple-system,sans-serif">
@@ -282,7 +282,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg
     <!-- New password — shown after verification -->
     <div id="fp-newpass" style="display:none;flex-direction:column;gap:10px">
       <div style="font-size:13px;color:var(--g);text-align:center">✅ Answers correct — set a new password</div>
-      <input id="fp-np1" type="password" maxlength="64" placeholder="New password (min 6 characters)"
+      <input id="fp-np1" type="password" maxlength="64" placeholder="New password (min 4 characters)"
         style="width:100%;padding:14px 16px;font-size:15px;background:var(--s2);border:1px solid var(--bo2);border-radius:12px;color:var(--t);outline:none;font-family:-apple-system,sans-serif">
       <input id="fp-np2" type="password" maxlength="64" placeholder="Confirm new password"
         style="width:100%;padding:14px 16px;font-size:15px;background:var(--s2);border:1px solid var(--bo2);border-radius:12px;color:var(--t);outline:none;font-family:-apple-system,sans-serif">
@@ -551,7 +551,7 @@ window.doSignUp=async()=>{
   setErr('su-err','');
   if(!user){setErr('su-err','Please enter a username');return}
   if(!/^[a-z0-9_]+$/.test(user)){setErr('su-err','Username: letters, numbers, underscore only');return}
-  if(pass.length<6){setErr('su-err','Password must be at least 6 characters');return}
+  if(pass.length<4){setErr('su-err','Password must be at least 4 characters');return}
   if(pass!==pass2){setErr('su-err','Passwords do not match');return}
   if(!q1||!a1||!q2||!a2||!q3||!a3){setErr('su-err','Please answer all 3 security questions');return}
   if(q1===q2||q1===q3||q2===q3){setErr('su-err','Please choose 3 different questions');return}
@@ -620,7 +620,7 @@ window.fpReset=async()=>{
   const np1=document.getElementById('fp-np1').value;
   const np2=document.getElementById('fp-np2').value;
   setErr('fp-err','');
-  if(np1.length<6){setErr('fp-err','Password must be at least 6 characters');return}
+  if(np1.length<4){setErr('fp-err','Password must be at least 4 characters');return}
   if(np1!==np2){setErr('fp-err','Passwords do not match');return}
   showLoading('Updating password...');
   try{
