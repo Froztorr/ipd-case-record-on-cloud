@@ -185,28 +185,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg
 .tc-pr{background:rgba(48,209,88,.15);color:#30d158}
 .tc-h{background:rgba(100,210,255,.15);color:#5ac8fa}
 /* GRANNY ANIMATION */
-.granny-wrap{display:flex;justify-content:center;align-items:center;width:100%;height:80px;position:relative;overflow:hidden}
-.granny{
-  font-size:60px;line-height:1;
-  cursor:pointer;user-select:none;
-  display:inline-block;
-  animation:grannyBob .6s ease-in-out infinite;
-  transform-origin:bottom center;
-}
-.granny::after{content:'🏃';position:absolute;opacity:0}
-@keyframes grannyBob{
-  0%  {transform:translateY(0px) rotate(-2deg)}
-  25% {transform:translateY(-6px) rotate(1deg)}
-  50% {transform:translateY(0px) rotate(-1deg)}
-  75% {transform:translateY(-3px) rotate(2deg)}
-  100%{transform:translateY(0px) rotate(-2deg)}
-}
-.granny.turbo{animation:grannyBobFast .15s ease-in-out infinite!important;font-size:64px}
-@keyframes grannyBobFast{
-  0%  {transform:translateY(0px) rotate(-4deg) scaleX(1)}
-  50% {transform:translateY(-10px) rotate(4deg) scaleX(.95)}
-  100%{transform:translateY(0px) rotate(-4deg) scaleX(1)}
-}
+.granny-wrap{display:flex;justify-content:center;align-items:center;width:100%;height:90px;overflow:hidden}
+.granny{height:90px;width:auto;cursor:pointer;image-rendering:pixelated}
+.granny.turbo{animation:grannySpeed .05s steps(1) infinite}
+@keyframes grannySpeed{0%{transform:scaleX(1)}50%{transform:scaleX(.97)}}
 /* OPD CHECK BUTTON */
 .opd-btn{width:26px;height:26px;background:none;border:none;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:transform .15s;filter:grayscale(1) opacity(.35)}
 .opd-btn.on{filter:none}
@@ -221,7 +203,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg
 <!-- LOGIN -->
 <div id="login-screen">
   <div class="login-logo" id="login-granny">
-    <div class="granny-wrap"><span class="granny" onclick="grannyTurbo()">👵</span></div>
+    <div class="granny-wrap"><img class="granny" src="Granny.gif" onclick="grannyTurbo()" alt="granny"></div>
   </div>
   <div class="login-title">Consult <b>E-Record</b></div>
 
@@ -816,15 +798,16 @@ function rToday(){
   const all=load(),t=today(),act=all.filter(c=>!c.dc);
   const ov=act.filter(c=>c.fu&&c.fu<t),td=act.filter(c=>c.fu===t),nd=act.filter(c=>!c.fu);
   let h=syncBar();
+  const impCount=all.filter(c=>!c.dc&&c.fu&&c.fu>t&&c.fu<=weekEnd()).length;
   h+=`<div class="sbar">
-    <div class="sc"><div class="sn" style="color:var(--a)">${act.length}</div><div class="sl">Active</div></div>
-    <div class="sc"><div class="sn" style="color:var(--am)">${td.length+ov.length}</div><div class="sl">Due Today</div></div>
-    <div class="sc"><div class="sn" style="color:var(--t3)">${all.filter(c=>c.dc).length}</div><div class="sl">Discharged</div></div>
+    <div class="sc"><div class="sn" style="color:var(--am)">${td.length+ov.length}</div><div class="sl">Today</div></div>
+    <div class="sc"><div class="sn" style="color:var(--a)">${impCount}</div><div class="sl">Impending</div></div>
+    <div class="sc"><div class="sn" style="color:var(--g)">${act.length}</div><div class="sl">Active</div></div>
   </div>`;
   if(ov.length)h+=`<div class="sh">⚠️ Overdue (${ov.length})</div><div class="cards">${ov.map(card).join('')}</div>`;
   if(td.length)h+=`<div class="sh" style="margin-top:8px">📅 Today — ${fd(t)} (${td.length})</div><div class="cards">${td.map(card).join('')}</div>`;
   if(nd.length)h+=`<div class="sh" style="margin-top:8px">No F/U date (${nd.length})</div><div class="cards">${nd.map(card).join('')}</div>`;
-  if(!ov.length&&!td.length&&!nd.length)h+=`<div class="empty"><div class="granny-wrap" style="margin-bottom:8px"><span class="granny" onclick="grannyTurbo()">👵</span></div><div class="et">${act.length?'All clear for today':'No active cases'}</div><div class="es">${act.length?act.length+' case(s) with future F/U':'Tap + to add a consult'}</div></div>`;
+  if(!ov.length&&!td.length&&!nd.length)h+=`<div class="empty"><div class="granny-wrap" style="margin-bottom:8px"><img class="granny" src="Granny.gif" onclick="grannyTurbo()" alt="granny"></div><div class="et">${act.length?'All clear for today':'No active cases'}</div><div class="es">${act.length?act.length+' case(s) with future F/U':'Tap + to add a consult'}</div></div>`;
   set('v-today',h);
 }
 
