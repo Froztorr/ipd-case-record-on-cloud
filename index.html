@@ -223,37 +223,60 @@ body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg
     <input id="su-pass2" type="password" autocomplete="new-password" maxlength="64" placeholder="Confirm password"
       style="width:100%;padding:14px 16px;font-size:15px;background:var(--s2);border:1px solid var(--bo2);border-radius:12px;color:var(--t);outline:none;font-family:-apple-system,sans-serif">
     <div style="font-size:11px;color:var(--t3);padding:2px 2px 0;font-weight:600;text-transform:uppercase;letter-spacing:.4px">Security Questions (for password recovery)</div>
-    <select id="su-q1" style="width:100%;padding:12px 13px;font-size:13px;background:var(--s2);border:1px solid var(--bo2);border-radius:10px;color:var(--t);outline:none;font-family:-apple-system,sans-serif">
+    <select id="su-q1" onchange="toggleCustomQ('su',1)" style="width:100%;padding:12px 13px;font-size:13px;background:var(--s2);border:1px solid var(--bo2);border-radius:10px;color:var(--t);outline:none;font-family:-apple-system,sans-serif">
       <option value="">Question 1 — select...</option>
-      <option>What is your mother's maiden name?</option>
-      <option>What was the name of your first pet?</option>
-      <option>What city were you born in?</option>
-      <option>What was the name of your primary school?</option>
-      <option>What is your oldest sibling's middle name?</option>
-      <option>What was the make of your first car?</option>
+      <option>ชื่อเล่นของคุณคืออะไร? (What is your nickname?)</option>
+      <option>บ้านเกิดของคุณอยู่จังหวัดอะไร? (What province were you born in?)</option>
+      <option>โรงเรียนประถมของคุณชื่ออะไร? (What was your primary school name?)</option>
+      <option>สัตว์เลี้ยงตัวแรกของคุณชื่ออะไร? (What was your first pet's name?)</option>
+      <option>อาหารที่คุณชอบที่สุดคืออะไร? (What is your favourite food?)</option>
+      <option>นามสกุลเดิมของแม่คุณคืออะไร? (What is your mother's maiden name?)</option>
+      <option>เพื่อนสนิทคนแรกของคุณชื่ออะไร? (What is the name of your childhood best friend?)</option>
+      <option>วิชาที่คุณชอบที่สุดตอนมัธยมคืออะไร? (What was your favourite subject in high school?)</option>
+      <option>ดาราหรือนักร้องที่คุณชอบที่สุดคืออะไร? (Who is your favourite celebrity or singer?)</option>
+      <option>รถคันแรกของคุณยี่ห้ออะไร? (What was the make of your first car?)</option>
+      <option value="__custom__">✏️ ตั้งคำถามเอง (Write my own question)</option>
     </select>
+    <input id="su-q1-custom" type="text" maxlength="100" placeholder="Write your own question..."
+      style="width:100%;padding:12px 13px;font-size:13px;background:var(--s2);border:1px solid var(--bo2);border-radius:10px;color:var(--t);outline:none;font-family:-apple-system,sans-serif;display:none">
     <input id="su-a1" type="text" maxlength="64" placeholder="Answer 1"
       style="width:100%;padding:12px 13px;font-size:14px;background:var(--s2);border:1px solid var(--bo2);border-radius:10px;color:var(--t);outline:none;font-family:-apple-system,sans-serif">
-    <select id="su-q2" style="width:100%;padding:12px 13px;font-size:13px;background:var(--s2);border:1px solid var(--bo2);border-radius:10px;color:var(--t);outline:none;font-family:-apple-system,sans-serif">
+
+    <select id="su-q2" onchange="toggleCustomQ('su',2)" style="width:100%;padding:12px 13px;font-size:13px;background:var(--s2);border:1px solid var(--bo2);border-radius:10px;color:var(--t);outline:none;font-family:-apple-system,sans-serif">
       <option value="">Question 2 — select...</option>
-      <option>What is your mother's maiden name?</option>
-      <option>What was the name of your first pet?</option>
-      <option>What city were you born in?</option>
-      <option>What was the name of your primary school?</option>
-      <option>What is your oldest sibling's middle name?</option>
-      <option>What was the make of your first car?</option>
+      <option>ชื่อเล่นของคุณคืออะไร? (What is your nickname?)</option>
+      <option>บ้านเกิดของคุณอยู่จังหวัดอะไร? (What province were you born in?)</option>
+      <option>โรงเรียนประถมของคุณชื่ออะไร? (What was your primary school name?)</option>
+      <option>สัตว์เลี้ยงตัวแรกของคุณชื่ออะไร? (What was your first pet's name?)</option>
+      <option>อาหารที่คุณชอบที่สุดคืออะไร? (What is your favourite food?)</option>
+      <option>นามสกุลเดิมของแม่คุณคืออะไร? (What is your mother's maiden name?)</option>
+      <option>เพื่อนสนิทคนแรกของคุณชื่ออะไร? (What is the name of your childhood best friend?)</option>
+      <option>วิชาที่คุณชอบที่สุดตอนมัธยมคืออะไร? (What was your favourite subject in high school?)</option>
+      <option>ดาราหรือนักร้องที่คุณชอบที่สุดคืออะไร? (Who is your favourite celebrity or singer?)</option>
+      <option>รถคันแรกของคุณยี่ห้ออะไร? (What was the make of your first car?)</option>
+      <option value="__custom__">✏️ ตั้งคำถามเอง (Write my own question)</option>
     </select>
+    <input id="su-q2-custom" type="text" maxlength="100" placeholder="Write your own question..."
+      style="width:100%;padding:12px 13px;font-size:13px;background:var(--s2);border:1px solid var(--bo2);border-radius:10px;color:var(--t);outline:none;font-family:-apple-system,sans-serif;display:none">
     <input id="su-a2" type="text" maxlength="64" placeholder="Answer 2"
       style="width:100%;padding:12px 13px;font-size:14px;background:var(--s2);border:1px solid var(--bo2);border-radius:10px;color:var(--t);outline:none;font-family:-apple-system,sans-serif">
-    <select id="su-q3" style="width:100%;padding:12px 13px;font-size:13px;background:var(--s2);border:1px solid var(--bo2);border-radius:10px;color:var(--t);outline:none;font-family:-apple-system,sans-serif">
+
+    <select id="su-q3" onchange="toggleCustomQ('su',3)" style="width:100%;padding:12px 13px;font-size:13px;background:var(--s2);border:1px solid var(--bo2);border-radius:10px;color:var(--t);outline:none;font-family:-apple-system,sans-serif">
       <option value="">Question 3 — select...</option>
-      <option>What is your mother's maiden name?</option>
-      <option>What was the name of your first pet?</option>
-      <option>What city were you born in?</option>
-      <option>What was the name of your primary school?</option>
-      <option>What is your oldest sibling's middle name?</option>
-      <option>What was the make of your first car?</option>
+      <option>ชื่อเล่นของคุณคืออะไร? (What is your nickname?)</option>
+      <option>บ้านเกิดของคุณอยู่จังหวัดอะไร? (What province were you born in?)</option>
+      <option>โรงเรียนประถมของคุณชื่ออะไร? (What was your primary school name?)</option>
+      <option>สัตว์เลี้ยงตัวแรกของคุณชื่ออะไร? (What was your first pet's name?)</option>
+      <option>อาหารที่คุณชอบที่สุดคืออะไร? (What is your favourite food?)</option>
+      <option>นามสกุลเดิมของแม่คุณคืออะไร? (What is your mother's maiden name?)</option>
+      <option>เพื่อนสนิทคนแรกของคุณชื่ออะไร? (What is the name of your childhood best friend?)</option>
+      <option>วิชาที่คุณชอบที่สุดตอนมัธยมคืออะไร? (What was your favourite subject in high school?)</option>
+      <option>ดาราหรือนักร้องที่คุณชอบที่สุดคืออะไร? (Who is your favourite celebrity or singer?)</option>
+      <option>รถคันแรกของคุณยี่ห้ออะไร? (What was the make of your first car?)</option>
+      <option value="__custom__">✏️ ตั้งคำถามเอง (Write my own question)</option>
     </select>
+    <input id="su-q3-custom" type="text" maxlength="100" placeholder="Write your own question..."
+      style="width:100%;padding:12px 13px;font-size:13px;background:var(--s2);border:1px solid var(--bo2);border-radius:10px;color:var(--t);outline:none;font-family:-apple-system,sans-serif;display:none">
     <input id="su-a3" type="text" maxlength="64" placeholder="Answer 3"
       style="width:100%;padding:12px 13px;font-size:14px;background:var(--s2);border:1px solid var(--bo2);border-radius:10px;color:var(--t);outline:none;font-family:-apple-system,sans-serif">
     <button onclick="doSignUp()" style="width:100%;padding:14px;background:var(--g);border:none;border-radius:12px;color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:-apple-system,sans-serif;margin-top:2px">Create Account</button>
@@ -537,23 +560,41 @@ window.doSignIn=async()=>{
   }catch(e){showLogin('signin');setErr('si-err','Error — check connection');console.error(e)}
 };
 
+window.toggleCustomQ=function(prefix,n){
+  const sel=document.getElementById(prefix+'-q'+n);
+  const inp=document.getElementById(prefix+'-q'+n+'-custom');
+  if(!sel||!inp)return;
+  inp.style.display=sel.value==='__custom__'?'block':'none';
+  if(sel.value==='__custom__')inp.focus();
+};
+
+function getQ(prefix,n){
+  const sel=document.getElementById(prefix+'-q'+n);
+  if(!sel)return'';
+  if(sel.value==='__custom__'){
+    const c=document.getElementById(prefix+'-q'+n+'-custom');
+    return c?c.value.trim():'';
+  }
+  return sel.value;
+}
+
 /* ── SIGN UP ── */
 window.doSignUp=async()=>{
   const user=document.getElementById('su-user').value.trim().toLowerCase();
   const pass=document.getElementById('su-pass').value;
   const pass2=document.getElementById('su-pass2').value;
-  const q1=document.getElementById('su-q1').value;
+  const q1=getQ('su',1);
   const a1=document.getElementById('su-a1').value.trim().toLowerCase();
-  const q2=document.getElementById('su-q2').value;
+  const q2=getQ('su',2);
   const a2=document.getElementById('su-a2').value.trim().toLowerCase();
-  const q3=document.getElementById('su-q3').value;
+  const q3=getQ('su',3);
   const a3=document.getElementById('su-a3').value.trim().toLowerCase();
   setErr('su-err','');
   if(!user){setErr('su-err','Please enter a username');return}
   if(!/^[a-z0-9_]+$/.test(user)){setErr('su-err','Username: letters, numbers, underscore only');return}
   if(pass.length<4){setErr('su-err','Password must be at least 4 characters');return}
   if(pass!==pass2){setErr('su-err','Passwords do not match');return}
-  if(!q1||!a1||!q2||!a2||!q3||!a3){setErr('su-err','Please answer all 3 security questions');return}
+  if(!q1||!a1||!q2||!a2||!q3||!a3){setErr('su-err','Please select and answer all 3 security questions');return}
   if(q1===q2||q1===q3||q2===q3){setErr('su-err','Please choose 3 different questions');return}
   showLoading('Creating account...');
   try{
