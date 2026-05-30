@@ -17,16 +17,12 @@
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;-webkit-font-smoothing:antialiased}
 body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg);color:var(--t);overflow-x:hidden;padding-top:var(--saf-t)}
 /* LOGIN */
-#login-screen{position:fixed;inset:0;z-index:500;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 32px;gap:28px}
+#login-screen{position:fixed;inset:0;z-index:500;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:calc(var(--saf-t) + 24px) 28px 40px;gap:18px;overflow-y:auto}
 #login-screen.h{display:none}
 .login-logo{font-size:52px}
 .login-title{font-size:26px;font-weight:700;letter-spacing:-.5px;text-align:center}
 .login-title b{color:var(--a)}
-.login-sub{font-size:14px;color:var(--t2);text-align:center;line-height:1.5}
-.google-btn{display:flex;align-items:center;justify-content:center;gap:12px;width:100%;padding:15px 20px;background:#fff;border:none;border-radius:14px;font-size:16px;font-weight:600;color:#1f1f1f;cursor:pointer;transition:opacity .15s;font-family:-apple-system,sans-serif}
-.google-btn:active{opacity:.8}
-.google-btn svg{width:22px;height:22px;flex-shrink:0}
-.login-note{font-size:12px;color:var(--t3);text-align:center;line-height:1.6}
+.login-sub{font-size:14px;color:var(--t2);text-align:center;line-height:1.5;display:none}
 /* LOADING */
 #loading{position:fixed;inset:0;z-index:400;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px}
 #loading.h{display:none}
@@ -198,23 +194,103 @@ body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg
 <div id="login-screen">
   <div class="login-logo">🏥</div>
   <div class="login-title">Rehab <b>Consult</b></div>
-  <div class="login-sub">Sign in to access your records</div>
-  <div style="width:100%;display:flex;flex-direction:column;gap:10px">
-    <input id="pin-user" type="text" autocomplete="username" maxlength="32"
-      placeholder="Username"
-      style="width:100%;padding:14px 16px;font-size:16px;text-align:left;background:var(--s2);border:1px solid var(--bo2);border-radius:12px;color:var(--t);outline:none;font-family:-apple-system,sans-serif"
-      onkeydown="if(event.key==='Enter')document.getElementById('pin-input').focus()">
-    <input id="pin-input" type="password" autocomplete="current-password" maxlength="32"
-      placeholder="Password (min 6 characters)"
-      style="width:100%;padding:14px 16px;font-size:16px;letter-spacing:3px;text-align:left;background:var(--s2);border:1px solid var(--bo2);border-radius:12px;color:var(--t);outline:none;font-family:-apple-system,sans-serif"
-      onkeydown="if(event.key==='Enter')pinLogin()">
-    <button onclick="pinLogin()"
-      style="width:100%;padding:15px;background:var(--a);border:none;border-radius:12px;color:#fff;font-size:16px;font-weight:700;cursor:pointer;font-family:-apple-system,sans-serif">
-      Enter
-    </button>
-    <div id="pin-err" style="color:var(--r);font-size:13px;text-align:center;min-height:18px"></div>
+
+  <!-- MODE SELECTOR -->
+  <div id="auth-tabs" style="display:flex;gap:0;background:var(--s2);border-radius:12px;padding:3px;width:100%">
+    <button id="tab-signin" onclick="authMode('signin')" style="flex:1;padding:9px;border:none;border-radius:9px;font-size:14px;font-weight:600;cursor:pointer;font-family:-apple-system,sans-serif;background:var(--a);color:#fff;transition:all .2s">Sign In</button>
+    <button id="tab-signup" onclick="authMode('signup')" style="flex:1;padding:9px;border:none;border-radius:9px;font-size:14px;font-weight:600;cursor:pointer;font-family:-apple-system,sans-serif;background:none;color:var(--t2);transition:all .2s">Sign Up</button>
   </div>
-  <div class="login-note">First time? Enter any username and password — they become your permanent credentials.<br>Your session will be remembered on this device.</div>
+
+  <!-- SIGN IN PANEL -->
+  <div id="panel-signin" style="width:100%;display:flex;flex-direction:column;gap:10px">
+    <input id="si-user" type="text" autocomplete="username" maxlength="32" placeholder="Username"
+      style="width:100%;padding:14px 16px;font-size:15px;background:var(--s2);border:1px solid var(--bo2);border-radius:12px;color:var(--t);outline:none;font-family:-apple-system,sans-serif"
+      onkeydown="if(event.key==='Enter')document.getElementById('si-pass').focus()">
+    <input id="si-pass" type="password" autocomplete="current-password" maxlength="64" placeholder="Password"
+      style="width:100%;padding:14px 16px;font-size:15px;background:var(--s2);border:1px solid var(--bo2);border-radius:12px;color:var(--t);outline:none;font-family:-apple-system,sans-serif"
+      onkeydown="if(event.key==='Enter')doSignIn()">
+    <button onclick="doSignIn()" style="width:100%;padding:14px;background:var(--a);border:none;border-radius:12px;color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:-apple-system,sans-serif">Sign In</button>
+    <button onclick="authMode('forgot')" style="background:none;border:none;color:var(--t3);font-size:13px;cursor:pointer;font-family:-apple-system,sans-serif;padding:4px">Forgot password?</button>
+    <div id="si-err" style="color:var(--r);font-size:13px;text-align:center;min-height:16px"></div>
+  </div>
+
+  <!-- SIGN UP PANEL -->
+  <div id="panel-signup" style="width:100%;display:none;flex-direction:column;gap:10px">
+    <input id="su-user" type="text" autocomplete="username" maxlength="32" placeholder="Choose a username"
+      style="width:100%;padding:14px 16px;font-size:15px;background:var(--s2);border:1px solid var(--bo2);border-radius:12px;color:var(--t);outline:none;font-family:-apple-system,sans-serif">
+    <input id="su-pass" type="password" autocomplete="new-password" maxlength="64" placeholder="Password (min 6 characters)"
+      style="width:100%;padding:14px 16px;font-size:15px;background:var(--s2);border:1px solid var(--bo2);border-radius:12px;color:var(--t);outline:none;font-family:-apple-system,sans-serif">
+    <input id="su-pass2" type="password" autocomplete="new-password" maxlength="64" placeholder="Confirm password"
+      style="width:100%;padding:14px 16px;font-size:15px;background:var(--s2);border:1px solid var(--bo2);border-radius:12px;color:var(--t);outline:none;font-family:-apple-system,sans-serif">
+    <div style="font-size:11px;color:var(--t3);padding:2px 2px 0;font-weight:600;text-transform:uppercase;letter-spacing:.4px">Security Questions (for password recovery)</div>
+    <select id="su-q1" style="width:100%;padding:12px 13px;font-size:13px;background:var(--s2);border:1px solid var(--bo2);border-radius:10px;color:var(--t);outline:none;font-family:-apple-system,sans-serif">
+      <option value="">Question 1 — select...</option>
+      <option>What is your mother's maiden name?</option>
+      <option>What was the name of your first pet?</option>
+      <option>What city were you born in?</option>
+      <option>What was the name of your primary school?</option>
+      <option>What is your oldest sibling's middle name?</option>
+      <option>What was the make of your first car?</option>
+    </select>
+    <input id="su-a1" type="text" maxlength="64" placeholder="Answer 1"
+      style="width:100%;padding:12px 13px;font-size:14px;background:var(--s2);border:1px solid var(--bo2);border-radius:10px;color:var(--t);outline:none;font-family:-apple-system,sans-serif">
+    <select id="su-q2" style="width:100%;padding:12px 13px;font-size:13px;background:var(--s2);border:1px solid var(--bo2);border-radius:10px;color:var(--t);outline:none;font-family:-apple-system,sans-serif">
+      <option value="">Question 2 — select...</option>
+      <option>What is your mother's maiden name?</option>
+      <option>What was the name of your first pet?</option>
+      <option>What city were you born in?</option>
+      <option>What was the name of your primary school?</option>
+      <option>What is your oldest sibling's middle name?</option>
+      <option>What was the make of your first car?</option>
+    </select>
+    <input id="su-a2" type="text" maxlength="64" placeholder="Answer 2"
+      style="width:100%;padding:12px 13px;font-size:14px;background:var(--s2);border:1px solid var(--bo2);border-radius:10px;color:var(--t);outline:none;font-family:-apple-system,sans-serif">
+    <select id="su-q3" style="width:100%;padding:12px 13px;font-size:13px;background:var(--s2);border:1px solid var(--bo2);border-radius:10px;color:var(--t);outline:none;font-family:-apple-system,sans-serif">
+      <option value="">Question 3 — select...</option>
+      <option>What is your mother's maiden name?</option>
+      <option>What was the name of your first pet?</option>
+      <option>What city were you born in?</option>
+      <option>What was the name of your primary school?</option>
+      <option>What is your oldest sibling's middle name?</option>
+      <option>What was the make of your first car?</option>
+    </select>
+    <input id="su-a3" type="text" maxlength="64" placeholder="Answer 3"
+      style="width:100%;padding:12px 13px;font-size:14px;background:var(--s2);border:1px solid var(--bo2);border-radius:10px;color:var(--t);outline:none;font-family:-apple-system,sans-serif">
+    <button onclick="doSignUp()" style="width:100%;padding:14px;background:var(--g);border:none;border-radius:12px;color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:-apple-system,sans-serif;margin-top:2px">Create Account</button>
+    <div id="su-err" style="color:var(--r);font-size:13px;text-align:center;min-height:16px"></div>
+  </div>
+
+  <!-- FORGOT PASSWORD PANEL -->
+  <div id="panel-forgot" style="width:100%;display:none;flex-direction:column;gap:10px">
+    <div style="font-size:13px;color:var(--t2);text-align:center">Enter your username to retrieve your security questions</div>
+    <input id="fp-user" type="text" maxlength="32" placeholder="Username"
+      style="width:100%;padding:14px 16px;font-size:15px;background:var(--s2);border:1px solid var(--bo2);border-radius:12px;color:var(--t);outline:none;font-family:-apple-system,sans-serif">
+    <button onclick="fpLookup()" style="width:100%;padding:14px;background:var(--am);border:none;border-radius:12px;color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:-apple-system,sans-serif">Look Up Account</button>
+    <!-- Security Q answers — shown after lookup -->
+    <div id="fp-qs" style="display:none;flex-direction:column;gap:10px">
+      <div id="fp-q1-lbl" style="font-size:13px;color:var(--t2)"></div>
+      <input id="fp-a1" type="text" maxlength="64" placeholder="Answer 1"
+        style="width:100%;padding:12px 13px;font-size:14px;background:var(--s2);border:1px solid var(--bo2);border-radius:10px;color:var(--t);outline:none;font-family:-apple-system,sans-serif">
+      <div id="fp-q2-lbl" style="font-size:13px;color:var(--t2)"></div>
+      <input id="fp-a2" type="text" maxlength="64" placeholder="Answer 2"
+        style="width:100%;padding:12px 13px;font-size:14px;background:var(--s2);border:1px solid var(--bo2);border-radius:10px;color:var(--t);outline:none;font-family:-apple-system,sans-serif">
+      <div id="fp-q3-lbl" style="font-size:13px;color:var(--t2)"></div>
+      <input id="fp-a3" type="text" maxlength="64" placeholder="Answer 3"
+        style="width:100%;padding:12px 13px;font-size:14px;background:var(--s2);border:1px solid var(--bo2);border-radius:10px;color:var(--t);outline:none;font-family:-apple-system,sans-serif">
+      <button onclick="fpVerify()" style="width:100%;padding:14px;background:var(--am);border:none;border-radius:12px;color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:-apple-system,sans-serif">Verify Answers</button>
+    </div>
+    <!-- New password — shown after verification -->
+    <div id="fp-newpass" style="display:none;flex-direction:column;gap:10px">
+      <div style="font-size:13px;color:var(--g);text-align:center">✅ Answers correct — set a new password</div>
+      <input id="fp-np1" type="password" maxlength="64" placeholder="New password (min 6 characters)"
+        style="width:100%;padding:14px 16px;font-size:15px;background:var(--s2);border:1px solid var(--bo2);border-radius:12px;color:var(--t);outline:none;font-family:-apple-system,sans-serif">
+      <input id="fp-np2" type="password" maxlength="64" placeholder="Confirm new password"
+        style="width:100%;padding:14px 16px;font-size:15px;background:var(--s2);border:1px solid var(--bo2);border-radius:12px;color:var(--t);outline:none;font-family:-apple-system,sans-serif">
+      <button onclick="fpReset()" style="width:100%;padding:14px;background:var(--g);border:none;border-radius:12px;color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:-apple-system,sans-serif">Set New Password</button>
+    </div>
+    <button onclick="authMode('signin')" style="background:none;border:none;color:var(--t3);font-size:13px;cursor:pointer;font-family:-apple-system,sans-serif;padding:4px">← Back to Sign In</button>
+    <div id="fp-err" style="color:var(--r);font-size:13px;text-align:center;min-height:16px"></div>
+  </div>
 </div>
 
 <!-- LOADING -->
@@ -341,7 +417,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg
 
 <div class="toast" id="toast"></div>
 
-<!-- FIREBASE via CDN — no module, no OAuth, just PIN + Firestore -->
+<!-- FIREBASE via CDN -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <script>
@@ -354,27 +430,58 @@ firebase.initializeApp({
   appId:"1:419932775509:web:35594c443aee67da5f20dc"
 });
 const db=firebase.firestore();
-let _uid=null,_unsub=null;
+let _uid=null,_unsub=null,_fpUser=null,_fpData=null;
 window._cases=[];
 
-// Hash PIN to a user ID — simple but sufficient for privacy separation
-async function hashPIN(pin){
-  const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode('rehab_'+pin));
-  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('').slice(0,28);
+async function sha(s){
+  const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode('rehab2024_'+s));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
 }
+async function uidFrom(user,pass){return(await sha(user+'::'+pass)).slice(0,28)}
 
-function showApp(){document.getElementById('app').style.display='';document.getElementById('loading').classList.add('h');document.getElementById('login-screen').classList.add('h')}
-function showLogin(){
+/* ── UI helpers ── */
+function showApp(){
+  document.getElementById('app').style.display='';
+  document.getElementById('loading').classList.add('h');
+  document.getElementById('login-screen').classList.add('h');
+}
+function showLogin(mode){
   document.getElementById('login-screen').classList.remove('h');
   document.getElementById('loading').classList.add('h');
   document.getElementById('app').style.display='none';
-  document.getElementById('pin-user').value='';
-  document.getElementById('pin-input').value='';
-  document.getElementById('pin-err').textContent='';
-  setTimeout(()=>document.getElementById('pin-user').focus(),300);
+  authMode(mode||'signin');
 }
-function showLoading(t){document.getElementById('load-txt').textContent=t||'Loading...';document.getElementById('loading').classList.remove('h')}
+function showLoading(t){
+  document.getElementById('load-txt').textContent=t||'Loading...';
+  document.getElementById('loading').classList.remove('h');
+}
+function setErr(id,msg){const e=document.getElementById(id);if(e)e.textContent=msg}
 
+window.authMode=function(m){
+  ['signin','signup','forgot'].forEach(x=>{
+    document.getElementById('panel-'+x).style.display=x===m?'flex':'none';
+  });
+  const ts=document.getElementById('tab-signin'),tu=document.getElementById('tab-signup');
+  if(ts&&tu){
+    ts.style.background=m==='signin'?'var(--a)':'none';
+    ts.style.color=m==='signin'?'#fff':'var(--t2)';
+    tu.style.background=m==='signup'?'var(--a)':'none';
+    tu.style.color=m==='signup'?'#fff':'var(--t2)';
+  }
+  // Hide auth-tabs for forgot mode
+  const at=document.getElementById('auth-tabs');
+  if(at)at.style.display=m==='forgot'?'none':'flex';
+  setErr('si-err','');setErr('su-err','');setErr('fp-err','');
+  // Reset forgot sub-panels
+  if(m==='forgot'){
+    document.getElementById('fp-qs').style.display='none';
+    document.getElementById('fp-newpass').style.display='none';
+    document.getElementById('fp-user').value='';
+    _fpUser=null;_fpData=null;
+  }
+};
+
+/* ── Subscribe data ── */
 function subscribeData(userId){
   if(_unsub)_unsub();
   setSyncBusy(true);
@@ -386,10 +493,19 @@ function subscribeData(userId){
       window.badges&&window.badges();
     },err=>{setSyncBusy(false);window.toast&&window.toast('⚠ Sync error')});
 }
-
 function setSyncBusy(b){const d=document.querySelector('.sync-dot');if(d)d.classList.toggle('busy',b)}
 
-// Check saved session
+function startSession(uid,username){
+  _uid=uid;
+  localStorage.setItem('rehab_uid',uid);
+  localStorage.setItem('rehab_user',username);
+  const ul=document.getElementById('user-lbl');
+  if(ul)ul.textContent=username[0].toUpperCase();
+  showApp();
+  subscribeData(uid);
+}
+
+/* ── Restore session ── */
 const savedUID=localStorage.getItem('rehab_uid');
 const savedUser=localStorage.getItem('rehab_user')||'';
 if(savedUID){
@@ -400,41 +516,155 @@ if(savedUID){
   if(ul&&savedUser)ul.textContent=savedUser[0].toUpperCase();
   subscribeData(_uid);
 } else {
-  showLogin();
+  showLogin('signin');
 }
 
-window.pinLogin=async()=>{
-  const user=document.getElementById('pin-user').value.trim().toLowerCase();
-  const pass=document.getElementById('pin-input').value;
-  const err=document.getElementById('pin-err');
-  if(!user){err.textContent='Please enter a username';return}
-  if(pass.length<6){err.textContent='Password must be at least 6 characters';return}
-  err.textContent='';
-  showLoading('Entering...');
-  _uid=await hashPIN(user+'::'+pass);
-  localStorage.setItem('rehab_uid',_uid);
-  localStorage.setItem('rehab_user',user);
-  const ul=document.getElementById('user-lbl');
-  if(ul)ul.textContent=user[0].toUpperCase();
-  showApp();
-  subscribeData(_uid);
+/* ── SIGN IN ── */
+window.doSignIn=async()=>{
+  const user=document.getElementById('si-user').value.trim().toLowerCase();
+  const pass=document.getElementById('si-pass').value;
+  setErr('si-err','');
+  if(!user||!pass){setErr('si-err','Please enter username and password');return}
+  showLoading('Signing in...');
+  try{
+    // Check account exists
+    const meta=await db.collection('accounts').doc(user).get();
+    if(!meta.exists){showLogin('signin');setErr('si-err','Account not found — please sign up first');return}
+    // Verify password hash
+    const passHash=await sha(user+'::'+pass);
+    if(meta.data().passHash!==passHash){showLogin('signin');setErr('si-err','Incorrect password');return}
+    startSession(meta.data().uid,user);
+  }catch(e){showLogin('signin');setErr('si-err','Error — check connection');console.error(e)}
 };
 
+/* ── SIGN UP ── */
+window.doSignUp=async()=>{
+  const user=document.getElementById('su-user').value.trim().toLowerCase();
+  const pass=document.getElementById('su-pass').value;
+  const pass2=document.getElementById('su-pass2').value;
+  const q1=document.getElementById('su-q1').value;
+  const a1=document.getElementById('su-a1').value.trim().toLowerCase();
+  const q2=document.getElementById('su-q2').value;
+  const a2=document.getElementById('su-a2').value.trim().toLowerCase();
+  const q3=document.getElementById('su-q3').value;
+  const a3=document.getElementById('su-a3').value.trim().toLowerCase();
+  setErr('su-err','');
+  if(!user){setErr('su-err','Please enter a username');return}
+  if(!/^[a-z0-9_]+$/.test(user)){setErr('su-err','Username: letters, numbers, underscore only');return}
+  if(pass.length<6){setErr('su-err','Password must be at least 6 characters');return}
+  if(pass!==pass2){setErr('su-err','Passwords do not match');return}
+  if(!q1||!a1||!q2||!a2||!q3||!a3){setErr('su-err','Please answer all 3 security questions');return}
+  if(q1===q2||q1===q3||q2===q3){setErr('su-err','Please choose 3 different questions');return}
+  showLoading('Creating account...');
+  try{
+    const existing=await db.collection('accounts').doc(user).get();
+    if(existing.exists){showLogin('signup');setErr('su-err','Username already taken — please choose another');return}
+    const uid=await uidFrom(user,pass);
+    const passHash=await sha(user+'::'+pass);
+    await db.collection('accounts').doc(user).set({
+      uid,passHash,
+      q1,a1Hash:await sha(user+'::q1::'+a1),
+      q2,a2Hash:await sha(user+'::q2::'+a2),
+      q3,a3Hash:await sha(user+'::q3::'+a3),
+      created:new Date().toISOString()
+    });
+    startSession(uid,user);
+  }catch(e){showLogin('signup');setErr('su-err','Error — check connection');console.error(e)}
+};
+
+/* ── FORGOT PASSWORD ── */
+window.fpLookup=async()=>{
+  const user=document.getElementById('fp-user').value.trim().toLowerCase();
+  setErr('fp-err','');
+  if(!user){setErr('fp-err','Please enter your username');return}
+  showLoading('Looking up account...');
+  try{
+    const meta=await db.collection('accounts').doc(user).get();
+    if(!meta.exists){showLogin('forgot');setErr('fp-err','Account not found');return}
+    _fpUser=user;_fpData=meta.data();
+    document.getElementById('loading').classList.add('h');
+    // Show questions
+    document.getElementById('fp-q1-lbl').textContent='Q1: '+_fpData.q1;
+    document.getElementById('fp-q2-lbl').textContent='Q2: '+_fpData.q2;
+    document.getElementById('fp-q3-lbl').textContent='Q3: '+_fpData.q3;
+    document.getElementById('fp-qs').style.display='flex';
+    document.getElementById('fp-a1').value='';
+    document.getElementById('fp-a2').value='';
+    document.getElementById('fp-a3').value='';
+  }catch(e){showLogin('forgot');setErr('fp-err','Error — check connection');console.error(e)}
+};
+
+window.fpVerify=async()=>{
+  if(!_fpUser||!_fpData){setErr('fp-err','Please look up your account first');return}
+  const a1=document.getElementById('fp-a1').value.trim().toLowerCase();
+  const a2=document.getElementById('fp-a2').value.trim().toLowerCase();
+  const a3=document.getElementById('fp-a3').value.trim().toLowerCase();
+  setErr('fp-err','');
+  if(!a1||!a2||!a3){setErr('fp-err','Please answer all 3 questions');return}
+  showLoading('Verifying...');
+  const h1=await sha(_fpUser+'::q1::'+a1);
+  const h2=await sha(_fpUser+'::q2::'+a2);
+  const h3=await sha(_fpUser+'::q3::'+a3);
+  document.getElementById('loading').classList.add('h');
+  if(h1!==_fpData.a1Hash||h2!==_fpData.a2Hash||h3!==_fpData.a3Hash){
+    setErr('fp-err','One or more answers are incorrect');return;
+  }
+  document.getElementById('fp-qs').style.display='none';
+  document.getElementById('fp-newpass').style.display='flex';
+  document.getElementById('fp-np1').value='';
+  document.getElementById('fp-np2').value='';
+};
+
+window.fpReset=async()=>{
+  if(!_fpUser||!_fpData){return}
+  const np1=document.getElementById('fp-np1').value;
+  const np2=document.getElementById('fp-np2').value;
+  setErr('fp-err','');
+  if(np1.length<6){setErr('fp-err','Password must be at least 6 characters');return}
+  if(np1!==np2){setErr('fp-err','Passwords do not match');return}
+  showLoading('Updating password...');
+  try{
+    const oldUID=_fpData.uid;
+    const newUID=await uidFrom(_fpUser,np1);
+    const newPassHash=await sha(_fpUser+'::'+np1);
+    // Migrate all cases to new UID path
+    if(oldUID!==newUID){
+      const snap=await db.collection('users').doc(oldUID).collection('cases').get();
+      const batch=db.batch();
+      snap.docs.forEach(d=>{
+        batch.set(db.collection('users').doc(newUID).collection('cases').doc(d.id),d.data());
+        batch.delete(d.ref);
+      });
+      await batch.commit();
+    }
+    // Update account record
+    await db.collection('accounts').doc(_fpUser).update({uid:newUID,passHash:newPassHash});
+    window.toast&&window.toast('✅ Password updated — please sign in');
+    showLogin('signin');
+    document.getElementById('si-user').value=_fpUser;
+    _fpUser=null;_fpData=null;
+  }catch(e){
+    document.getElementById('loading').classList.add('h');
+    setErr('fp-err','Error — check connection');console.error(e);
+  }
+};
+
+/* ── SIGN OUT ── */
 window.doSignOut=()=>{
-  window.showConf('🔒','Sign out?','You will need your username and password to access your data again.',
+  window.showConf('🔒','Sign out?','You will need your username and password to sign back in.',
     'Sign out',()=>{
       if(_unsub){_unsub();_unsub=null}
-      window._cases=[];
-      _uid=null;
+      window._cases=[];_uid=null;
       localStorage.removeItem('rehab_uid');
       localStorage.removeItem('rehab_user');
       const ul=document.getElementById('user-lbl');
       if(ul)ul.textContent='🔒';
-      showLogin();
+      showLogin('signin');
       window.render&&window.render();
     });
 };
 
+/* ── CLOUD OPS ── */
 window._saveToCloud=async(c)=>{
   if(!_uid)return;setSyncBusy(true);
   try{await db.collection('users').doc(_uid).collection('cases').doc(c.id).set(c)}
