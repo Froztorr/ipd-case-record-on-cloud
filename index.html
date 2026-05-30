@@ -333,7 +333,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg
 <!-- FIREBASE -->
 <script type="module">
 import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
-import{getAuth,GoogleAuthProvider,signInWithPopup,signOut,onAuthStateChanged}from'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+import{getAuth,GoogleAuthProvider,signInWithRedirect,getRedirectResult,signOut,onAuthStateChanged}from'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 import{getFirestore,collection,doc,setDoc,deleteDoc,onSnapshot,query,orderBy}from'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
 const cfg={
@@ -400,16 +400,21 @@ onAuthStateChanged(auth,user=>{
   }
 });
 
-// Expose Firebase ops to window
-window.signIn=async()=>{
-  try{
-    showLoading('Signing in...');
-    await signInWithPopup(auth,provider);
-  }catch(e){
-    document.getElementById('loading').classList.add('h');
-    document.getElementById('login-screen').classList.remove('h');
-    if(e.code!=='auth/popup-closed-by-user')window.toast('Sign-in failed — try again');
+// Handle redirect result when returning from Google sign-in
+getRedirectResult(auth).then(result=>{
+  if(result?.user){
+    // Successfully signed in via redirect — onAuthStateChanged handles the rest
   }
+}).catch(e=>{
+  document.getElementById('loading').classList.add('h');
+  document.getElementById('login-screen').classList.remove('h');
+  if(e.code!=='auth/popup-closed-by-user')window.toast('Sign-in failed — try again');
+});
+
+// Expose Firebase ops to window
+window.signIn=()=>{
+  showLoading('Redirecting to Google...');
+  signInWithRedirect(auth,provider);
 };
 
 window.signOutUser=()=>{
