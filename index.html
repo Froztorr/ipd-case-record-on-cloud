@@ -198,12 +198,23 @@ body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg
 <div id="login-screen">
   <div class="login-logo">🏥</div>
   <div class="login-title">Rehab <b>Consult</b></div>
-  <div class="login-sub">Sign in to sync your patient records securely across all your devices.</div>
-  <button class="google-btn" onclick="signIn()">
-    <svg viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/><path fill="none" d="M0 0h48v48H0z"/></svg>
-    Continue with Google
-  </button>
-  <div class="login-note">Your data is stored privately under your account.<br>No one else can access your patient records.</div>
+  <div class="login-sub">Sign in to access your records</div>
+  <div style="width:100%;display:flex;flex-direction:column;gap:10px">
+    <input id="pin-user" type="text" autocomplete="username" maxlength="32"
+      placeholder="Username"
+      style="width:100%;padding:14px 16px;font-size:16px;text-align:left;background:var(--s2);border:1px solid var(--bo2);border-radius:12px;color:var(--t);outline:none;font-family:-apple-system,sans-serif"
+      onkeydown="if(event.key==='Enter')document.getElementById('pin-input').focus()">
+    <input id="pin-input" type="password" autocomplete="current-password" maxlength="32"
+      placeholder="Password (min 6 characters)"
+      style="width:100%;padding:14px 16px;font-size:16px;letter-spacing:3px;text-align:left;background:var(--s2);border:1px solid var(--bo2);border-radius:12px;color:var(--t);outline:none;font-family:-apple-system,sans-serif"
+      onkeydown="if(event.key==='Enter')pinLogin()">
+    <button onclick="pinLogin()"
+      style="width:100%;padding:15px;background:var(--a);border:none;border-radius:12px;color:#fff;font-size:16px;font-weight:700;cursor:pointer;font-family:-apple-system,sans-serif">
+      Enter
+    </button>
+    <div id="pin-err" style="color:var(--r);font-size:13px;text-align:center;min-height:18px"></div>
+  </div>
+  <div class="login-note">First time? Enter any username and password — they become your permanent credentials.<br>Your session will be remembered on this device.</div>
 </div>
 
 <!-- LOADING -->
@@ -218,8 +229,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg
     <div class="htop">
       <div class="htitle">Rehab <b>Consult</b></div>
       <div style="display:flex;align-items:center;gap:8px">
-        <button class="hbin" onclick="confirmClearAll()" aria-label="Clear all data" title="Clear all data">🗑</button>
-        <div class="huser" id="user-avatar" onclick="signOutUser()" title="Sign out"></div>
+        <button class="hbin" onclick="confirmClearAll()" aria-label="Clear all data">🗑</button>
+        <button class="hbin" onclick="doSignOut()" title="Sign out" style="font-size:16px;background:var(--s2);color:var(--t2)" id="user-lbl">🔒</button>
       </div>
     </div>
     <div class="tabs">
@@ -330,147 +341,116 @@ body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg
 
 <div class="toast" id="toast"></div>
 
-<!-- FIREBASE -->
-<script type="module">
-import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
-import{getAuth,GoogleAuthProvider,signInWithPopup,signInWithRedirect,getRedirectResult,signOut,onAuthStateChanged,browserLocalPersistence,setPersistence}from'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-import{getFirestore,collection,doc,setDoc,deleteDoc,onSnapshot,query,orderBy,getDocs}from'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
-
-const cfg={
+<!-- FIREBASE via CDN — no module, no OAuth, just PIN + Firestore -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script>
+firebase.initializeApp({
   apiKey:"AIzaSyCfFKjk49sIs9ybiCkJzqC2j0YAOf7i5YI",
   authDomain:"rehab-consult.firebaseapp.com",
   projectId:"rehab-consult",
   storageBucket:"rehab-consult.firebasestorage.app",
   messagingSenderId:"419932775509",
   appId:"1:419932775509:web:35594c443aee67da5f20dc"
-};
-
-const fbapp=initializeApp(cfg);
-const auth=getAuth(fbapp);
-const db=getFirestore(fbapp);
-const provider=new GoogleAuthProvider();
-provider.setCustomParameters({prompt:'select_account'});
-
-// Force local persistence so Safari keeps session
-setPersistence(auth,browserLocalPersistence).catch(()=>{});
-
-let uid=null,unsub=null;
+});
+const db=firebase.firestore();
+let _uid=null,_unsub=null;
 window._cases=[];
 
+// Hash PIN to a user ID — simple but sufficient for privacy separation
+async function hashPIN(pin){
+  const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode('rehab_'+pin));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('').slice(0,28);
+}
+
 function showApp(){document.getElementById('app').style.display='';document.getElementById('loading').classList.add('h');document.getElementById('login-screen').classList.add('h')}
-function showLogin(){document.getElementById('login-screen').classList.remove('h');document.getElementById('loading').classList.add('h');document.getElementById('app').style.display='none'}
+function showLogin(){
+  document.getElementById('login-screen').classList.remove('h');
+  document.getElementById('loading').classList.add('h');
+  document.getElementById('app').style.display='none';
+  document.getElementById('pin-user').value='';
+  document.getElementById('pin-input').value='';
+  document.getElementById('pin-err').textContent='';
+  setTimeout(()=>document.getElementById('pin-user').focus(),300);
+}
 function showLoading(t){document.getElementById('load-txt').textContent=t||'Loading...';document.getElementById('loading').classList.remove('h')}
 
-function setAvatar(user){
-  const el=document.getElementById('user-avatar');
-  if(user.photoURL){el.innerHTML=`<img src="${user.photoURL}" alt="">`}
-  else{el.textContent=(user.displayName||user.email||'?')[0].toUpperCase()}
-}
-
 function subscribeData(userId){
-  if(unsub)unsub();
+  if(_unsub)_unsub();
   setSyncBusy(true);
-  const q=query(collection(db,`users/${userId}/cases`),orderBy('created','desc'));
-  unsub=onSnapshot(q,snap=>{
-    window._cases=snap.docs.map(d=>({id:d.id,...d.data()}));
-    setSyncBusy(false);
-    window.render();
-    window.badges();
-  },err=>{
-    console.error(err);setSyncBusy(false);
-    window.toast('⚠ Sync error — check connection');
-  });
+  _unsub=db.collection('users').doc(userId).collection('cases').orderBy('created','desc')
+    .onSnapshot(snap=>{
+      window._cases=snap.docs.map(d=>({id:d.id,...d.data()}));
+      setSyncBusy(false);
+      window.render&&window.render();
+      window.badges&&window.badges();
+    },err=>{setSyncBusy(false);window.toast&&window.toast('⚠ Sync error')});
 }
 
-function setSyncBusy(b){
-  const d=document.querySelector('.sync-dot');
-  if(d)d.classList.toggle('busy',b);
+function setSyncBusy(b){const d=document.querySelector('.sync-dot');if(d)d.classList.toggle('busy',b)}
+
+// Check saved session
+const savedUID=localStorage.getItem('rehab_uid');
+const savedUser=localStorage.getItem('rehab_user')||'';
+if(savedUID){
+  _uid=savedUID;
+  showLoading('Loading your data...');
+  showApp();
+  const ul=document.getElementById('user-lbl');
+  if(ul&&savedUser)ul.textContent=savedUser[0].toUpperCase();
+  subscribeData(_uid);
+} else {
+  showLogin();
 }
 
-// Check for redirect result first, then listen for auth state
-showLoading('Checking sign-in...');
-getRedirectResult(auth).then(result=>{
-  if(result?.user){
-    // Redirect sign-in succeeded — onAuthStateChanged will fire
-  }
-}).catch(e=>{
-  console.error('Redirect error:',e.code,e.message);
-  // Don't show error here — fall through to onAuthStateChanged
-});
-
-onAuthStateChanged(auth,user=>{
-  if(user){
-    uid=user.uid;
-    setAvatar(user);
-    showLoading('Syncing your data...');
-    showApp();
-    subscribeData(uid);
-    window.render();
-  } else {
-    uid=null;
-    if(unsub){unsub();unsub=null}
-    window._cases=[];
-    showLogin();
-  }
-});
-
-window.signIn=async()=>{
-  // Try popup first (works on desktop/Chrome)
-  // Fall back to redirect (needed for Safari/PWA)
-  const isSafari=/^((?!chrome|android).)*safari/i.test(navigator.userAgent);
-  const isPWA=window.navigator.standalone===true;
-  if(isSafari||isPWA){
-    showLoading('Redirecting to Google...');
-    signInWithRedirect(auth,provider);
-  } else {
-    try{
-      showLoading('Signing in...');
-      await signInWithPopup(auth,provider);
-    }catch(e){
-      document.getElementById('loading').classList.add('h');
-      document.getElementById('login-screen').classList.remove('h');
-      if(e.code==='auth/popup-blocked'||e.code==='auth/operation-not-supported-in-this-environment'){
-        showLoading('Redirecting to Google...');
-        signInWithRedirect(auth,provider);
-      } else if(e.code!=='auth/popup-closed-by-user'){
-        window.toast('Sign-in failed: '+e.code);
-      }
-    }
-  }
+window.pinLogin=async()=>{
+  const user=document.getElementById('pin-user').value.trim().toLowerCase();
+  const pass=document.getElementById('pin-input').value;
+  const err=document.getElementById('pin-err');
+  if(!user){err.textContent='Please enter a username';return}
+  if(pass.length<6){err.textContent='Password must be at least 6 characters';return}
+  err.textContent='';
+  showLoading('Entering...');
+  _uid=await hashPIN(user+'::'+pass);
+  localStorage.setItem('rehab_uid',_uid);
+  localStorage.setItem('rehab_user',user);
+  const ul=document.getElementById('user-lbl');
+  if(ul)ul.textContent=user[0].toUpperCase();
+  showApp();
+  subscribeData(_uid);
 };
 
-window.signOutUser=()=>{
-  window.showConf('👋','Sign out?','You will be returned to the login screen.',
-    'Sign out',async()=>{
-      if(unsub){unsub();unsub=null}
+window.doSignOut=()=>{
+  window.showConf('🔒','Sign out?','You will need your username and password to access your data again.',
+    'Sign out',()=>{
+      if(_unsub){_unsub();_unsub=null}
       window._cases=[];
-      await signOut(auth);
+      _uid=null;
+      localStorage.removeItem('rehab_uid');
+      localStorage.removeItem('rehab_user');
+      const ul=document.getElementById('user-lbl');
+      if(ul)ul.textContent='🔒';
+      showLogin();
+      window.render&&window.render();
     });
 };
 
 window._saveToCloud=async(c)=>{
-  if(!uid)return;
-  setSyncBusy(true);
-  try{
-    await setDoc(doc(db,`users/${uid}/cases`,c.id),c);
-  }catch(e){window.toast('⚠ Save failed');console.error(e);}
+  if(!_uid)return;setSyncBusy(true);
+  try{await db.collection('users').doc(_uid).collection('cases').doc(c.id).set(c)}
+  catch(e){window.toast('⚠ Save failed');console.error(e)}
 };
-
 window._deleteFromCloud=async(id)=>{
-  if(!uid)return;
-  setSyncBusy(true);
-  try{
-    await deleteDoc(doc(db,`users/${uid}/cases`,id));
-  }catch(e){window.toast('⚠ Delete failed');console.error(e);}
+  if(!_uid)return;setSyncBusy(true);
+  try{await db.collection('users').doc(_uid).collection('cases').doc(id).delete()}
+  catch(e){window.toast('⚠ Delete failed');console.error(e)}
 };
-
 window._clearAllFromCloud=async()=>{
-  if(!uid)return;
-  setSyncBusy(true);
+  if(!_uid)return;setSyncBusy(true);
   try{
-    const snap=await getDocs(collection(db,`users/${uid}/cases`));
-    await Promise.all(snap.docs.map(d=>deleteDoc(doc(db,`users/${uid}/cases`,d.id))));
-  }catch(e){window.toast('⚠ Clear failed');console.error(e);}
+    const snap=await db.collection('users').doc(_uid).collection('cases').get();
+    await Promise.all(snap.docs.map(d=>d.ref.delete()));
+  }catch(e){window.toast('⚠ Clear failed');console.error(e)}
 };
 </script>
 
