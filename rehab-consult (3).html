@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Rehab">
+<title>Rehab Consult</title>
+<style>
+:root{
+  --bg:#0f1117;--s:#1a1d27;--s2:#232637;--bo:rgba(255,255,255,.08);--bo2:rgba(255,255,255,.14);
+  --t:#f0f2ff;--t2:#8b8fa8;--t3:#555870;
+  --a:#6c6fff;--a2:#4e51cc;--g:#3ecf8e;--am:#f5a623;--r:#ff6b6b;
+  --rsm:8px;--saf-t:env(safe-area-inset-top,20px);--saf-b:env(safe-area-inset-bottom,0px);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;-webkit-font-smoothing:antialiased}
+body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg);color:var(--t);overflow-x:hidden;padding-top:var(--saf-t)}
+/* LOGIN */
+#login-screen{position:fixed;inset:0;z-index:500;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 32px;gap:28px}
+#login-screen.h{display:none}
+.login-logo{font-size:52px}
+.login-title{font-size:26px;font-weight:700;letter-spacing:-.5px;text-align:center}
+.login-title b{color:var(--a)}
+.login-sub{font-size:14px;color:var(--t2);text-align:center;line-height:1.5}
+.google-btn{display:flex;align-items:center;justify-content:center;gap:12px;width:100%;padding:15px 20px;background:#fff;border:none;border-radius:14px;font-size:16px;font-weight:600;color:#1f1f1f;cursor:pointer;transition:opacity .15s;font-family:-apple-system,sans-serif}
+.google-btn:active{opacity:.8}
+.google-btn svg{width:22px;height:22px;flex-shrink:0}
+.login-note{font-size:12px;color:var(--t3);text-align:center;line-height:1.6}
+/* LOADING */
+#loading{position:fixed;inset:0;z-index:400;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px}
+#loading.h{display:none}
+.spin{width:32px;height:32px;border:3px solid var(--bo2);border-top-color:var(--a);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.load-txt{font-size:14px;color:var(--t2)}
+/* HEADER */
+#hdr{position:sticky;top:0;z-index:50;background:var(--bg);border-bottom:1px solid var(--bo)}
+.htop{display:flex;align-items:center;justify-content:space-between;padding:10px 16px 0}
+.htitle{font-size:20px;font-weight:700;letter-spacing:-.5px;display:flex;align-items:center;gap:8px}
+.htitle b{color:var(--a)}
+.huser{width:28px;height:28px;border-radius:50%;background:var(--a);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;cursor:pointer;flex-shrink:0;overflow:hidden}
+.huser img{width:100%;height:100%;object-fit:cover}
+.hbin{width:30px;height:30px;border-radius:50%;background:#2a1515;border:none;color:var(--r);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+/* TABS */
+.tabs{display:flex;overflow-x:auto;scrollbar-width:none;padding:4px 16px 0;gap:2px}
+.tabs::-webkit-scrollbar{display:none}
+.tab{flex-shrink:0;padding:7px 10px 9px;font-size:12px;font-weight:500;color:var(--t3);border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;transition:color .15s,border-color .15s;white-space:nowrap}
+.tab.on{color:var(--t);border-bottom-color:var(--a)}
+.bdg{display:inline-flex;align-items:center;justify-content:center;min-width:16px;height:16px;padding:0 4px;border-radius:8px;background:var(--a);color:#fff;font-size:9px;font-weight:700;margin-left:3px;vertical-align:middle}
+.bdg.h{display:none}
+/* CONTENT */
+#content{padding:12px 14px 0;padding-bottom:calc(var(--saf-b) + 80px)}
+.view{display:none}.view.on{display:block}
+/* STAT BAR */
+.sbar{display:flex;gap:8px;margin-bottom:12px}
+.sc{flex:1;background:var(--s2);border-radius:10px;padding:9px 10px;text-align:center;min-width:0}
+.sn{font-size:19px;font-weight:700}.sl{font-size:10px;color:var(--t3);margin-top:1px}
+/* SECTION HDR */
+.sh{font-size:11px;color:var(--t3);font-weight:600;padding:8px 2px 4px;letter-spacing:.3px}
+.sh.imp{color:var(--a);font-size:12px}
+/* CARDS */
+.cards{display:flex;flex-direction:column;gap:8px;margin-bottom:4px}
+.card{background:var(--s);border:1px solid var(--bo);border-radius:12px;padding:12px 14px;cursor:pointer;position:relative;overflow:hidden;transition:opacity .1s}
+.card:active{opacity:.82}
+.ca{position:absolute;left:0;top:0;bottom:0;width:3px}
+.cr1{display:flex;align-items:flex-start;gap:8px;margin-bottom:6px}
+.cn{font-size:15px;font-weight:600;flex:1;line-height:1.3}
+.sbtn{width:26px;height:26px;background:none;border:none;color:var(--t3);font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:color .15s}
+.sbtn.on{color:var(--am)}.sbtn:active{transform:scale(1.25)}
+.cmeta{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px}
+.bh{padding:2px 7px;border-radius:5px;font-size:11px;font-weight:600;white-space:nowrap}
+.bhn{background:rgba(108,111,255,.15);color:#9b9eff}
+.bwd{background:rgba(62,207,142,.12);color:var(--g)}
+.btp{font-size:10px}
+.cdx{font-size:13px;color:var(--t2);margin-bottom:5px;line-height:1.4}
+.cnotes{font-size:12px;color:var(--t3);margin-bottom:7px;line-height:1.45;background:var(--s2);border-radius:7px;padding:6px 9px;white-space:pre-wrap;border-left:2px solid var(--bo2)}
+.cfoot{display:flex;align-items:center;justify-content:space-between;gap:6px}
+.fd{font-size:11px;color:var(--t3);flex:1;min-width:0}
+.fd.td{color:var(--am);font-weight:600}.fd.ov{color:var(--r);font-weight:600}
+.cbtns{display:flex;gap:5px;flex-shrink:0}
+.mb{padding:4px 9px;border-radius:7px;font-size:11px;font-weight:600;border:none;cursor:pointer;white-space:nowrap;transition:opacity .15s}
+.mb:active{opacity:.7}
+.mfu{background:rgba(108,111,255,.2);color:#9b9eff}
+.mdc{background:rgba(255,107,107,.15);color:var(--r)}
+.mun{background:rgba(62,207,142,.15);color:var(--g)}
+/* EMPTY */
+.empty{text-align:center;padding:40px 20px;color:var(--t2)}
+.ei{font-size:40px;margin-bottom:10px}.et{font-size:14px}.es{font-size:12px;color:var(--t3);margin-top:5px}
+/* OVERLAY */
+.ov-wrap{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.65);backdrop-filter:blur(6px);display:flex;align-items:flex-end;opacity:0;pointer-events:none;transition:opacity .22s}
+.ov-wrap.on{opacity:1;pointer-events:all}
+.sheet{width:100%;background:var(--s);border-radius:20px 20px 0 0;max-height:90vh;overflow-y:auto;transform:translateY(100%);transition:transform .28s cubic-bezier(.32,.72,0,1);padding-bottom:calc(var(--saf-b) + 16px)}
+.ov-wrap.on .sheet{transform:translateY(0)}
+.shdl{width:34px;height:4px;background:var(--bo2);border-radius:2px;margin:10px auto 0}
+.shhdr{padding:14px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--bo)}
+.shtitle{font-size:16px;font-weight:700}
+.xcls{width:26px;height:26px;border-radius:50%;background:var(--s2);border:none;color:var(--t2);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+/* FORM */
+.form{padding:14px 16px;display:flex;flex-direction:column;gap:12px}
+.fg{display:flex;flex-direction:column;gap:5px}
+.fl{font-size:11px;color:var(--t2);font-weight:600;letter-spacing:.4px;text-transform:uppercase}
+.fi,.fsl,.fta{background:var(--s2);border:1px solid var(--bo);border-radius:var(--rsm);color:var(--t);font-size:15px;font-family:-apple-system,sans-serif;outline:none;padding:10px 13px;width:100%;transition:border-color .18s}
+.fi:focus,.fsl:focus,.fta:focus{border-color:var(--a)}
+.fta{resize:none;min-height:72px;line-height:1.45}
+.fsl option{background:var(--s2)}
+.frow{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.qd-wrap{display:flex;gap:5px;flex-wrap:wrap;margin-top:5px}
+.qd{padding:4px 9px;border-radius:6px;background:var(--s2);border:1px solid var(--bo);color:var(--t2);font-size:11px;cursor:pointer;font-family:-apple-system,sans-serif;transition:all .12s}
+.qd:active{background:var(--a);color:#fff;border-color:var(--a)}
+.sbmt{width:100%;padding:14px;background:var(--a);border:none;border-radius:var(--rsm);color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:-apple-system,sans-serif;margin-top:2px;transition:background .15s}
+.sbmt:active{background:var(--a2)}
+/* DETAIL */
+.dsec{padding:12px 16px;border-bottom:1px solid var(--bo)}
+.dl{font-size:10px;color:var(--t3);font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px}
+.dv{font-size:14px}
+.dgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.dnotes{font-size:13px;color:var(--t2);line-height:1.55;white-space:pre-wrap;margin-top:3px;background:var(--s2);border-radius:7px;padding:9px 11px;border-left:2px solid var(--bo2)}
+.dacts{padding:14px 16px;display:flex;flex-direction:column;gap:8px}
+.ab{width:100%;padding:12px;border-radius:var(--rsm);border:none;font-size:14px;font-weight:600;cursor:pointer;font-family:-apple-system,sans-serif;transition:opacity .15s}
+.ab:active{opacity:.72}
+.ap{background:rgba(108,111,255,.2);color:#9b9eff}
+.ag{background:rgba(62,207,142,.15);color:var(--g)}
+.aw{background:rgba(245,166,35,.15);color:var(--am)}
+.agr{background:var(--s2);color:var(--t2)}
+.ard{background:rgba(255,69,58,.12);color:#ff453a}
+/* SEARCH */
+.sw{position:relative;margin-bottom:10px}
+.si{width:100%;padding:9px 14px 9px 36px;background:var(--s2);border:1px solid var(--bo);border-radius:11px;color:var(--t);font-size:13px;font-family:-apple-system,sans-serif;outline:none}
+.si:focus{border-color:var(--a)}.si::placeholder{color:var(--t3)}
+.sico{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--t3);font-size:14px;pointer-events:none}
+.fw{display:flex;gap:5px;overflow-x:auto;padding-bottom:8px;margin-bottom:6px;scrollbar-width:none}
+.fw::-webkit-scrollbar{display:none}
+.chip{flex-shrink:0;padding:4px 11px;border-radius:20px;border:1px solid var(--bo);background:var(--s2);color:var(--t2);font-size:11px;cursor:pointer;transition:all .12s;white-space:nowrap}
+.chip.on{background:var(--a);border-color:var(--a);color:#fff}
+/* DATE RANGE */
+.dr{display:flex;gap:6px;align-items:center;margin-bottom:10px;flex-wrap:wrap}
+.dr label{font-size:11px;color:var(--t3);white-space:nowrap}
+.dr .fi{flex:1;min-width:100px;padding:8px 11px;font-size:13px}
+/* MONTH HDR */
+.mhdr{font-size:12px;font-weight:700;color:var(--t2);padding:10px 2px 5px;display:flex;align-items:center;gap:6px}
+.mhdr span{font-size:11px;color:var(--t3);font-weight:400}
+/* STATS */
+.stbl{width:100%;border-collapse:collapse;margin-bottom:16px;font-size:13px}
+.stbl th{color:var(--t3);text-align:left;padding:5px 7px;border-bottom:1px solid var(--bo);font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.3px}
+.stbl td{padding:7px 7px;border-bottom:1px solid var(--bo)}
+.stbl tr:last-child td{font-weight:700;background:var(--s2);color:var(--t)}
+.dot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:5px;vertical-align:middle}
+.cwrap{margin-bottom:20px}.ctitle{font-size:12px;color:var(--t2);margin-bottom:8px;font-weight:600}
+.leg{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}
+.li{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--t2)}
+.ld{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+/* FAB */
+.fab-wrap{position:fixed;right:16px;bottom:calc(var(--saf-b) + 76px);z-index:60}
+.fab{width:52px;height:52px;border-radius:50%;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:28px;background:var(--a);color:#fff;box-shadow:0 3px 14px rgba(108,111,255,.45);transition:transform .12s}
+.fab:active{transform:scale(.9)}
+/* EXPORT */
+.expbtn{display:flex;align-items:center;gap:5px;padding:7px 12px;background:var(--s2);border:1px solid var(--bo);border-radius:9px;color:var(--t2);font-size:12px;cursor:pointer;font-family:-apple-system,sans-serif;margin-bottom:10px}
+.expbtn:active{opacity:.7}
+/* SYNC INDICATOR */
+.sync{font-size:11px;color:var(--t3);padding:2px 0 6px;display:flex;align-items:center;gap:5px}
+.sync-dot{width:6px;height:6px;border-radius:50%;background:var(--g);flex-shrink:0}
+.sync-dot.busy{background:var(--am);animation:pulse .8s infinite alternate}
+@keyframes pulse{to{opacity:.3}}
+/* TOAST */
+.toast{position:fixed;bottom:calc(var(--saf-b) + 86px);left:50%;transform:translateX(-50%) translateY(16px);background:var(--s2);border:1px solid var(--bo2);padding:9px 18px;border-radius:18px;font-size:12px;z-index:300;opacity:0;transition:all .25s;white-space:nowrap;pointer-events:none}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+/* CONFIRM MODAL */
+.conf-wrap{position:fixed;inset:0;z-index:400;background:rgba(0,0,0,.7);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;padding:24px;opacity:0;pointer-events:none;transition:opacity .2s}
+.conf-wrap.on{opacity:1;pointer-events:all}
+.conf-box{background:var(--s);border:1px solid var(--bo2);border-radius:18px;padding:24px 20px 16px;width:100%;max-width:320px;text-align:center;transform:scale(.92);transition:transform .2s}
+.conf-wrap.on .conf-box{transform:scale(1)}
+.conf-icon{font-size:36px;margin-bottom:10px}
+.conf-title{font-size:16px;font-weight:700;margin-bottom:6px}
+.conf-msg{font-size:13px;color:var(--t2);line-height:1.5;margin-bottom:20px}
+.conf-btns{display:flex;gap:10px}
+.conf-btns button{flex:1;padding:12px;border-radius:10px;border:none;font-size:14px;font-weight:600;cursor:pointer;font-family:-apple-system,sans-serif}
+.conf-cancel{background:var(--s2);color:var(--t2)}
+.conf-ok{background:var(--r);color:#fff}
+/* TYPE COLORS */
+.tc-s{background:rgba(255,126,179,.2);color:#ff7eb3}
+.tc-c{background:rgba(108,111,255,.25);color:#9b9eff}
+.tc-p{background:rgba(62,207,142,.18);color:#3ecf8e}
+.tc-sw{background:rgba(245,166,35,.2);color:#f5a623}
+.tc-ca{background:rgba(255,107,107,.18);color:#ff6b6b}
+.tc-pu{background:rgba(100,210,255,.18);color:#64d2ff}
+.tc-po{background:rgba(191,148,255,.18);color:#bf94ff}
+.tc-b{background:rgba(255,159,10,.18);color:#ff9f0a}
+.tc-i{background:rgba(255,69,58,.2);color:#ff453a}
+.tc-pr{background:rgba(48,209,88,.15);color:#30d158}
+.tc-h{background:rgba(100,210,255,.15);color:#5ac8fa}
+@keyframes fi{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.card{animation:fi .2s ease both}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-logo">🏥</div>
+  <div class="login-title">Rehab <b>Consult</b></div>
+  <div class="login-sub">Sign in to sync your patient records securely across all your devices.</div>
+  <button class="google-btn" onclick="signIn()">
+    <svg viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/><path fill="none" d="M0 0h48v48H0z"/></svg>
+    Continue with Google
+  </button>
+  <div class="login-note">Your data is stored privately under your account.<br>No one else can access your patient records.</div>
+</div>
+
+<!-- LOADING -->
+<div id="loading">
+  <div class="spin"></div>
+  <div class="load-txt" id="load-txt">Loading...</div>
+</div>
+
+<!-- APP -->
+<div id="app" style="display:none">
+  <div id="hdr">
+    <div class="htop">
+      <div class="htitle">Rehab <b>Consult</b></div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <button class="hbin" onclick="confirmClearAll()" aria-label="Clear all data" title="Clear all data">🗑</button>
+        <div class="huser" id="user-avatar" onclick="signOutUser()" title="Sign out"></div>
+      </div>
+    </div>
+    <div class="tabs">
+      <button class="tab on" id="t-today" onclick="go('today')">📋 Today<span class="bdg h" id="b-today"></span></button>
+      <button class="tab" id="t-imp" onclick="go('imp')">⏰ Impending<span class="bdg h" id="b-imp"></span></button>
+      <button class="tab" id="t-done" onclick="go('done')">📋 All Cases<span class="bdg h" id="b-done"></span></button>
+      <button class="tab" id="t-dc" onclick="go('dc')">🏠 Discharged<span class="bdg h" id="b-dc"></span></button>
+      <button class="tab" id="t-vip" onclick="go('vip')">⭐ VIP<span class="bdg h" id="b-vip"></span></button>
+      <button class="tab" id="t-stats" onclick="go('stats')">📊 Stats</button>
+    </div>
+  </div>
+
+  <div id="content">
+    <div class="view on" id="v-today"></div>
+    <div class="view" id="v-imp"></div>
+    <div class="view" id="v-done"></div>
+    <div class="view" id="v-dc"></div>
+    <div class="view" id="v-vip"></div>
+    <div class="view" id="v-stats"></div>
+  </div>
+
+  <div class="fab-wrap">
+    <button class="fab" onclick="openAdd()" aria-label="Add">+</button>
+  </div>
+</div>
+
+<!-- ADD/EDIT -->
+<div class="ov-wrap" id="ov-add" onclick="bkd(event,'ov-add')">
+ <div class="sheet">
+  <div class="shdl"></div>
+  <div class="shhdr"><div class="shtitle" id="ft-title">New Consult</div><button class="xcls" onclick="cls('ov-add')">✕</button></div>
+  <div class="form">
+   <input type="hidden" id="eid">
+   <div class="fg"><label class="fl">Patient Name *</label><input class="fi" id="fn" placeholder="ชื่อ-นามสกุล" type="text" autocomplete="off"></div>
+   <div class="frow">
+    <div class="fg"><label class="fl">HN</label><input class="fi" id="fhn" placeholder="00000/00" type="text" autocomplete="off"></div>
+    <div class="fg"><label class="fl">Ward</label><input class="fi" id="fwd" placeholder="18a2/12-1" type="text" autocomplete="off"></div>
+   </div>
+   <div class="fg"><label class="fl">Diagnosis</label><input class="fi" id="fdx" placeholder="e.g. Lt MCA infarct" type="text" autocomplete="off"></div>
+   <div class="fg"><label class="fl">Category *</label>
+    <select class="fsl" id="fty">
+     <option value="">-- Select --</option>
+     <option>Stroke</option><option>Chronic med</option><option>Post op</option><option>Swallow</option>
+     <option>Cardiac</option><option>Pulmo</option><option>PO</option><option>Burn</option>
+     <option>ICU</option><option>Prehab</option><option>Hip fast</option>
+    </select>
+   </div>
+   <div class="fg"><label class="fl">Follow-up Date</label>
+    <input class="fi" id="ffu" type="date">
+    <div class="qd-wrap">
+     <button class="qd" onclick="qdToday('ffu')">From today</button>
+     <button class="qd" onclick="qd(0,'ffu')">+0d</button><button class="qd" onclick="qd(1,'ffu')">+1d</button>
+     <button class="qd" onclick="qd(2,'ffu')">+2d</button><button class="qd" onclick="qd(3,'ffu')">+3d</button>
+     <button class="qd" onclick="qd(7,'ffu')">+1wk</button><button class="qd" onclick="qd(14,'ffu')">+2wk</button>
+     <button class="qd" onclick="qd(30,'ffu')">+1mo</button><button class="qd" onclick="qd(60,'ffu')">+2mo</button>
+     <button class="qd" onclick="qd(90,'ffu')">+3mo</button>
+    </div>
+   </div>
+   <div class="fg"><label class="fl">Notes</label><textarea class="fta" id="fnt" placeholder="Clinical notes, plan..."></textarea></div>
+   <button class="sbmt" onclick="saveCase()">Save</button>
+  </div>
+ </div>
+</div>
+
+<!-- DETAIL -->
+<div class="ov-wrap" id="ov-det" onclick="bkd(event,'ov-det')">
+ <div class="sheet">
+  <div class="shdl"></div>
+  <div class="shhdr"><div class="shtitle" id="det-name">–</div><button class="xcls" onclick="cls('ov-det')">✕</button></div>
+  <div id="det-body"></div>
+ </div>
+</div>
+
+<!-- FU DATE -->
+<div class="ov-wrap" id="ov-fu" onclick="bkd(event,'ov-fu')">
+ <div class="sheet">
+  <div class="shdl"></div>
+  <div class="shhdr"><div class="shtitle">Set Follow-up Date</div><button class="xcls" onclick="cls('ov-fu')">✕</button></div>
+  <div class="form">
+   <div class="fg"><label class="fl">Next Follow-up</label>
+    <input class="fi" id="fuinp" type="date">
+    <div class="qd-wrap">
+     <button class="qd" onclick="qdToday('fuinp')">From today</button>
+     <button class="qd" onclick="qd(0,'fuinp')">+0d</button><button class="qd" onclick="qd(1,'fuinp')">+1d</button>
+     <button class="qd" onclick="qd(2,'fuinp')">+2d</button><button class="qd" onclick="qd(3,'fuinp')">+3d</button>
+     <button class="qd" onclick="qd(7,'fuinp')">+1wk</button><button class="qd" onclick="qd(14,'fuinp')">+2wk</button>
+     <button class="qd" onclick="qd(30,'fuinp')">+1mo</button><button class="qd" onclick="qd(60,'fuinp')">+2mo</button>
+     <button class="qd" onclick="qd(90,'fuinp')">+3mo</button>
+    </div>
+   </div>
+   <button class="sbmt" onclick="saveFU()">Confirm</button>
+  </div>
+ </div>
+</div>
+
+<!-- CONFIRM MODAL -->
+<div class="conf-wrap" id="conf-wrap">
+  <div class="conf-box">
+    <div class="conf-icon" id="conf-icon">⚠️</div>
+    <div class="conf-title" id="conf-title">Are you sure?</div>
+    <div class="conf-msg" id="conf-msg"></div>
+    <div class="conf-btns">
+      <button class="conf-cancel" onclick="confCancel()">Cancel</button>
+      <button class="conf-ok" id="conf-ok-btn" onclick="confOk()">Delete</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- FIREBASE -->
+<script type="module">
+import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+import{getAuth,GoogleAuthProvider,signInWithPopup,signOut,onAuthStateChanged}from'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+import{getFirestore,collection,doc,setDoc,deleteDoc,onSnapshot,query,orderBy}from'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+
+const cfg={
+  apiKey:"AIzaSyCfFKjk49sIs9ybiCkJzqC2j0YAOf7i5YI",
+  authDomain:"rehab-consult.firebaseapp.com",
+  projectId:"rehab-consult",
+  storageBucket:"rehab-consult.firebasestorage.app",
+  messagingSenderId:"419932775509",
+  appId:"1:419932775509:web:35594c443aee67da5f20dc"
+};
+
+const app=initializeApp(cfg);
+const auth=getAuth(app);
+const db=getFirestore(app);
+const provider=new GoogleAuthProvider();
+
+let uid=null,unsub=null;
+// cache in memory — no localStorage
+window._cases=[];
+
+function showApp(){document.getElementById('app').style.display='';document.getElementById('loading').classList.add('h');document.getElementById('login-screen').classList.add('h')}
+function showLogin(){document.getElementById('login-screen').classList.remove('h');document.getElementById('loading').classList.add('h');document.getElementById('app').style.display='none'}
+function showLoading(t){document.getElementById('load-txt').textContent=t||'Loading...';document.getElementById('loading').classList.remove('h')}
+
+function setAvatar(user){
+  const el=document.getElementById('user-avatar');
+  if(user.photoURL){el.innerHTML=`<img src="${user.photoURL}" alt="">`}
+  else{el.textContent=(user.displayName||user.email||'?')[0].toUpperCase()}
+}
+
+function subscribeData(userId){
+  if(unsub)unsub();
+  setSyncBusy(true);
+  const q=query(collection(db,`users/${userId}/cases`),orderBy('created','desc'));
+  unsub=onSnapshot(q,snap=>{
+    window._cases=snap.docs.map(d=>({id:d.id,...d.data()}));
+    setSyncBusy(false);
+    window.render();
+    window.badges();
+  },err=>{
+    console.error(err);setSyncBusy(false);
+    window.toast('⚠ Sync error — check connection');
+  });
+}
+
+function setSyncBusy(b){
+  const d=document.querySelector('.sync-dot');
+  if(d)d.classList.toggle('busy',b);
+}
+
+onAuthStateChanged(auth,user=>{
+  if(user){
+    uid=user.uid;
+    setAvatar(user);
+    showLoading('Syncing your data...');
+    showApp();
+    subscribeData(uid);
+    window.render();
+  } else {
+    uid=null;
+    if(unsub){unsub();unsub=null}
+    window._cases=[];
+    showLogin();
+  }
+});
+
+// Expose Firebase ops to window
+window.signIn=async()=>{
+  try{
+    showLoading('Signing in...');
+    await signInWithPopup(auth,provider);
+  }catch(e){
+    document.getElementById('loading').classList.add('h');
+    document.getElementById('login-screen').classList.remove('h');
+    if(e.code!=='auth/popup-closed-by-user')window.toast('Sign-in failed — try again');
+  }
+};
+
+window.signOutUser=()=>{
+  window.showConf('👋','Sign out?','You will be returned to the login screen.',
+    'Sign out',async()=>{
+      if(unsub){unsub();unsub=null}
+      window._cases=[];
+      await signOut(auth);
+    });
+};
+
+window._saveToCloud=async(c)=>{
+  if(!uid)return;
+  setSyncBusy(true);
+  try{
+    await setDoc(doc(db,`users/${uid}/cases`,c.id),c);
+  }catch(e){window.toast('⚠ Save failed');console.error(e);}
+};
+
+window._deleteFromCloud=async(id)=>{
+  if(!uid)return;
+  setSyncBusy(true);
+  try{
+    await deleteDoc(doc(db,`users/${uid}/cases`,id));
+  }catch(e){window.toast('⚠ Delete failed');console.error(e);}
+};
+
+window._clearAllFromCloud=async()=>{
+  if(!uid)return;
+  setSyncBusy(true);
+  try{
+    const snap=await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js')
+      .then(m=>m.getDocs(collection(db,`users/${uid}/cases`)));
+    const dels=snap.docs.map(d=>deleteDoc(doc(db,`users/${uid}/cases`,d.id)));
+    await Promise.all(dels);
+  }catch(e){window.toast('⚠ Clear failed');console.error(e);}
+};
+</script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+let tab='today',fuId=null,pie=null;
+let dcFilter='All',dcSearch='',dcFrom='',dcTo='';
+let doneFilter='All',doneSearch='';
+let stFrom='',stTo='';
+
+const TYPES=['Stroke','Chronic med','Post op','Swallow','Cardiac','Pulmo','PO','Burn','ICU','Prehab','Hip fast'];
+const TC={Stroke:'tc-s','Chronic med':'tc-c','Post op':'tc-p',Swallow:'tc-sw',Cardiac:'tc-ca',Pulmo:'tc-pu',PO:'tc-po',Burn:'tc-b',ICU:'tc-i',Prehab:'tc-pr','Hip fast':'tc-h'};
+const TK={Stroke:'#ff7eb3','Chronic med':'#6c6fff','Post op':'#3ecf8e',Swallow:'#f5a623',Cardiac:'#ff6b6b',Pulmo:'#64d2ff',PO:'#bf94ff',Burn:'#ff9f0a',ICU:'#ff453a',Prehab:'#30d158','Hip fast':'#5ac8fa'};
+
+// Data — always read from in-memory cache populated by Firestore listener
+function load(){return window._cases||[]}
+function uid_(){return Math.random().toString(36).slice(2,9)+Date.now().toString(36)}
+
+const today=()=>new Date().toISOString().split('T')[0];
+const fd=s=>{if(!s)return'–';const[y,m,d]=s.split('-');return`${d}/${m}/${y.slice(2)}`};
+const addD=(s,n)=>{const d=new Date(s+'T00:00:00');d.setDate(d.getDate()+n);return d.toISOString().split('T')[0]};
+const weekEnd=()=>{const d=new Date(),n=5-d.getDay();const f=new Date(d);f.setDate(d.getDate()+(n>=0?n:n+7));return f.toISOString().split('T')[0]};
+const monthKey=s=>{if(!s)return'Unknown';const[y,m]=s.split('-');const mn=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];return`${mn[parseInt(m,10)-1]} ${y}`};
+const dayLbl=s=>{
+  const t=today(),diff=Math.round((new Date(s+'T00:00:00')-new Date(t+'T00:00:00'))/86400000);
+  if(diff===0)return'Today';if(diff===1)return'Tomorrow';if(diff===-1)return'Yesterday';
+  return['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][new Date(s+'T00:00:00').getDay()]+' '+fd(s);
+};
+
+function card(c){
+  const t=today(),ov=!c.dc&&c.fu&&c.fu<t,isT=c.fu===t;
+  const flab=c.dc?`<span class="fd">DC ${fd(c.dcDate)}</span>`:
+    !c.fu?`<span class="fd">No F/U set</span>`:
+    ov?`<span class="fd ov">⚠ Overdue ${fd(c.fu)}</span>`:
+    isT?`<span class="fd td">📅 F/U Today</span>`:
+    `<span class="fd">F/U ${fd(c.fu)}</span>`;
+  return`<div class="card" onclick="openDet('${c.id}')">
+    <div class="ca" style="background:${TK[c.ty]||'#6c6fff'}"></div>
+    <div class="cr1">
+      <div class="cn">${c.nm||'–'}</div>
+      <button class="sbtn${c.st?' on':''}" onclick="event.stopPropagation();star('${c.id}')" aria-label="VIP">★</button>
+    </div>
+    <div class="cmeta">
+      ${c.hn?`<span class="bh bhn">HN ${c.hn}</span>`:''}
+      ${c.wd?`<span class="bh bwd">${c.wd}</span>`:''}
+      ${c.ty?`<span class="bh btp ${TC[c.ty]||''}">${c.ty}</span>`:''}
+    </div>
+    ${c.dx?`<div class="cdx">${c.dx}</div>`:''}
+    ${c.nt?`<div class="cnotes">${c.nt}</div>`:''}
+    <div class="cfoot">${flab}<div class="cbtns">
+      ${!c.dc?`<button class="mb mfu" onclick="event.stopPropagation();openFU('${c.id}')">Set F/U</button>`:''}
+      ${c.dc?`<button class="mb mun" onclick="event.stopPropagation();undc('${c.id}')">↩ Reactivate</button>`:
+              `<button class="mb mdc" onclick="event.stopPropagation();dc('${c.id}')">Discharge</button>`}
+    </div></div>
+  </div>`;
+}
+
+function chips(types,cur,fn){
+  return`<div class="fw">${['All',...types].map(t=>`<button class="chip${cur===t?' on':''}" onclick="${fn}('${t}')">${t}</button>`).join('')}</div>`;
+}
+
+function syncBar(){return`<div class="sync"><div class="sync-dot" id="sync-dot-inline"></div>Synced to cloud</div>`}
+
+/* ===== TODAY ===== */
+function rToday(){
+  const all=load(),t=today(),act=all.filter(c=>!c.dc);
+  const ov=act.filter(c=>c.fu&&c.fu<t),td=act.filter(c=>c.fu===t),nd=act.filter(c=>!c.fu);
+  let h=syncBar();
+  h+=`<div class="sbar">
+    <div class="sc"><div class="sn" style="color:var(--a)">${act.length}</div><div class="sl">Active</div></div>
+    <div class="sc"><div class="sn" style="color:var(--am)">${td.length+ov.length}</div><div class="sl">Due Today</div></div>
+    <div class="sc"><div class="sn" style="color:var(--t3)">${all.filter(c=>c.dc).length}</div><div class="sl">Discharged</div></div>
+  </div>`;
+  if(ov.length)h+=`<div class="sh">⚠️ Overdue (${ov.length})</div><div class="cards">${ov.map(card).join('')}</div>`;
+  if(td.length)h+=`<div class="sh" style="margin-top:8px">📅 Today — ${fd(t)} (${td.length})</div><div class="cards">${td.map(card).join('')}</div>`;
+  if(nd.length)h+=`<div class="sh" style="margin-top:8px">No F/U date (${nd.length})</div><div class="cards">${nd.map(card).join('')}</div>`;
+  if(!ov.length&&!td.length&&!nd.length)h+=`<div class="empty"><div class="ei">${act.length?'✅':'🏥'}</div><div class="et">${act.length?'All clear for today':'No active cases'}</div><div class="es">${act.length?act.length+' case(s) with future F/U':'Tap + to add a consult'}</div></div>`;
+  set('v-today',h);
+}
+
+/* ===== IMPENDING ===== */
+function rImp(){
+  const t=today(),tom=addD(t,1),we=weekEnd();
+  const cases=load().filter(c=>!c.dc&&c.fu&&c.fu>=tom&&c.fu<=we).sort((a,b)=>a.fu.localeCompare(b.fu));
+  let h='';
+  if(!cases.length){h=`<div class="empty"><div class="ei">📆</div><div class="et">No upcoming cases this week</div><div class="es">Cases with F/U from tomorrow to Friday appear here</div></div>`}
+  else{const g={};cases.forEach(c=>{(g[c.fu]=g[c.fu]||[]).push(c)});h=Object.keys(g).sort().map(k=>`<div class="sh imp">📅 ${dayLbl(k)} <span style="color:var(--t3);font-size:11px">(${g[k].length})</span></div><div class="cards">${g[k].map(card).join('')}</div>`).join('')}
+  set('v-imp',h);
+}
+
+/* ===== ALL CASES ===== */
+function setDoneFilter(f){doneFilter=f;rDone()}
+function rDone(){
+  let cases=load().filter(c=>!c.dc);
+  if(doneSearch){const q=doneSearch.toLowerCase();cases=cases.filter(c=>[c.nm,c.hn,c.wd,c.dx].some(x=>(x||'').toLowerCase().includes(q)))}
+  if(doneFilter!=='All')cases=cases.filter(c=>c.ty===doneFilter);
+  let h=`<div class="sw"><span class="sico">🔍</span><input class="si" placeholder="Search..." value="${doneSearch}" oninput="doneSearch=this.value;rDone()" type="search"></div>`;
+  h+=chips(TYPES,doneFilter,'setDoneFilter');
+  if(!cases.length){h+=`<div class="empty"><div class="ei">🏥</div><div class="et">No active cases</div><div class="es">Tap + to add a consult</div></div>`;set('v-done',h);return}
+  const withDate=cases.filter(c=>c.fu).sort((a,b)=>a.fu.localeCompare(b.fu));
+  const noDate=cases.filter(c=>!c.fu);
+  if(withDate.length){const g={};withDate.forEach(c=>{(g[c.fu]=g[c.fu]||[]).push(c)});h+=Object.keys(g).sort().map(k=>`<div class="sh">📋 ${dayLbl(k)} (${g[k].length})</div><div class="cards">${g[k].map(card).join('')}</div>`).join('')}
+  if(noDate.length)h+=`<div class="sh">No F/U date (${noDate.length})</div><div class="cards">${noDate.map(card).join('')}</div>`;
+  set('v-done',h);
+}
+
+/* ===== DISCHARGED ===== */
+function setDcFilter(f){dcFilter=f;rDc()}
+function dcApplyDate(){dcFrom=document.getElementById('dc-from').value;dcTo=document.getElementById('dc-to').value;rDc()}
+function rDc(){
+  let cases=load().filter(c=>c.dc);
+  if(dcSearch){const q=dcSearch.toLowerCase();cases=cases.filter(c=>[c.nm,c.hn,c.wd,c.dx].some(x=>(x||'').toLowerCase().includes(q)))}
+  if(dcFilter!=='All')cases=cases.filter(c=>c.ty===dcFilter);
+  if(dcFrom||dcTo){cases=cases.filter(c=>{const d=c.dcDate||c.fu||'';return(!dcFrom||d>=dcFrom)&&(!dcTo||d<=dcTo)})}
+  cases.sort((a,b)=>(b.dcDate||b.fu||'').localeCompare(a.dcDate||a.fu||''));
+  let h=`<div class="sw"><span class="sico">🔍</span><input class="si" placeholder="Search discharged..." value="${dcSearch}" oninput="dcSearch=this.value;rDc()" type="search"></div>`;
+  h+=chips(TYPES,dcFilter,'setDcFilter');
+  h+=`<div class="dr"><label>From</label><input class="fi" id="dc-from" type="date" value="${dcFrom}"><label>To</label><input class="fi" id="dc-to" type="date" value="${dcTo}"><button onclick="dcApplyDate()" style="padding:8px 12px;border-radius:8px;background:var(--a);border:none;color:#fff;font-size:13px;cursor:pointer;flex-shrink:0">🔍</button></div>`;
+  h+=`<button class="expbtn" onclick="expCSV()">⬇ Export CSV</button>`;
+  if(!cases.length){
+    h+=`<div class="empty"><div class="ei">🏠</div><div class="et">No discharged patients</div><div class="es">${(dcFrom||dcTo)?'No matches for selected range':'Use Discharge on any active case'}</div></div>`;
+  } else {
+    const g={};cases.forEach(c=>{const k=monthKey(c.dcDate||c.fu);(g[k]=g[k]||[]).push(c)});
+    const sorted=Object.keys(g).sort((a,b)=>{const mn=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];const toN=s=>{const[m,y]=s.split(' ');return parseInt(y)*12+mn.indexOf(m)};return toN(b)-toN(a)});
+    h+=sorted.map(k=>`<div class="mhdr">📦 ${k} <span>(${g[k].length})</span></div><div class="cards">${g[k].map(card).join('')}</div>`).join('');
+  }
+  set('v-dc',h);
+}
+
+/* ===== VIP ===== */
+function rVip(){
+  const cases=load().filter(c=>c.st);
+  set('v-vip',cases.length?`<div class="cards">${cases.map(card).join('')}</div>`:`<div class="empty"><div class="ei">⭐</div><div class="et">No VIP cases</div><div class="es">Tap ★ on any case</div></div>`);
+}
+
+/* ===== STATS ===== */
+function rStats(){
+  const t=today();
+  if(!stFrom)stFrom=addD(t,-30);
+  if(!stTo)stTo=t;
+  let h=`<div class="dr"><label>From</label><input class="fi" type="date" value="${stFrom}" onchange="stFrom=this.value;rStats()"><label>To</label><input class="fi" type="date" value="${stTo}" onchange="stTo=this.value;rStats()"></div>`;
+  const cases=load().filter(c=>{const d=(c.created||'').split('T')[0];return d>=stFrom&&d<=stTo});
+  const cnt={};TYPES.forEach(t=>cnt[t]=0);cases.forEach(c=>{if(cnt[c.ty]!==undefined)cnt[c.ty]++});
+  const total=cases.length;
+  h+=`<table class="stbl"><thead><tr><th>Category</th><th style="text-align:right">n</th><th style="text-align:right">%</th></tr></thead><tbody>`;
+  TYPES.forEach(t=>{if(!cnt[t])return;const p=((cnt[t]/total)*100).toFixed(1);h+=`<tr><td><span class="dot" style="background:${TK[t]}"></span>${t}</td><td style="text-align:right;font-weight:600">${cnt[t]}</td><td style="text-align:right;color:var(--t3)">${p}%</td></tr>`});
+  h+=`<tr><td><b>Total</b></td><td style="text-align:right">${total}</td><td style="text-align:right">–</td></tr></tbody></table>`;
+  if(total>0)h+=`<div class="cwrap"><div class="ctitle">Distribution by category</div><canvas id="pieC" height="240"></canvas><div class="leg" id="leg"></div></div>`;
+  else h+=`<div class="empty"><div class="ei">📊</div><div class="et">No cases in range</div></div>`;
+  set('v-stats',h);
+  if(total>0)setTimeout(()=>{
+    const at=TYPES.filter(t=>cnt[t]>0);
+    if(pie){pie.destroy();pie=null}
+    const ctx=document.getElementById('pieC');if(!ctx)return;
+    pie=new Chart(ctx,{type:'doughnut',data:{labels:at,datasets:[{data:at.map(t=>cnt[t]),backgroundColor:at.map(t=>TK[t]),borderWidth:2,borderColor:'#1a1d27',hoverOffset:5}]},options:{responsive:true,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>{const p=((c.parsed/total)*100).toFixed(1);return` ${c.label}: ${c.parsed} (${p}%)`}}}},cutout:'56%'}});
+    const leg=document.getElementById('leg');
+    if(leg)leg.innerHTML=at.map(t=>`<div class="li"><div class="ld" style="background:${TK[t]}"></div>${t} (${cnt[t]})</div>`).join('');
+  },80);
+}
+
+/* ===== BADGES ===== */
+function badges(){
+  const all=load(),t=today(),tom=addD(t,1),we=weekEnd();
+  const b=(id,n)=>{const e=document.getElementById(id);if(!e)return;e.textContent=n;e.classList.toggle('h',!n)};
+  b('b-today',all.filter(c=>!c.dc&&(c.fu===t||(c.fu&&c.fu<t))).length);
+  b('b-imp',all.filter(c=>!c.dc&&c.fu&&c.fu>=tom&&c.fu<=we).length);
+  b('b-done',all.filter(c=>!c.dc).length);
+  b('b-dc',all.filter(c=>c.dc).length);
+  b('b-vip',all.filter(c=>c.st).length);
+}
+window.badges=badges;
+
+/* ===== TAB ===== */
+function go(t){
+  tab=t;
+  ['today','imp','done','dc','vip','stats'].forEach(x=>{
+    document.getElementById('t-'+x).classList.toggle('on',x===t);
+    document.getElementById('v-'+x).classList.toggle('on',x===t);
+  });
+  render();
+}
+
+function render(){
+  if(tab==='today')rToday();
+  else if(tab==='imp')rImp();
+  else if(tab==='done')rDone();
+  else if(tab==='dc')rDc();
+  else if(tab==='vip')rVip();
+  else rStats();
+  badges();
+}
+window.render=render;
+
+/* ===== DETAIL ===== */
+function openDet(id){
+  const c=load().find(x=>x.id===id);if(!c)return;
+  document.getElementById('det-name').textContent=c.nm||'–';
+  const fus=c.dc?`<span style="color:var(--t3)">DC ${fd(c.dcDate)}</span>`:c.fu?fd(c.fu):'–';
+  document.getElementById('det-body').innerHTML=`
+  <div class="dsec"><div class="dgrid">
+    <div><div class="dl">HN</div><div class="dv">${c.hn||'–'}</div></div>
+    <div><div class="dl">Ward</div><div class="dv">${c.wd||'–'}</div></div>
+    <div><div class="dl">Category</div><div class="dv"><span class="bh btp ${TC[c.ty]||''}">${c.ty||'–'}</span></div></div>
+    <div><div class="dl">Follow-up</div><div class="dv">${fus}</div></div>
+  </div></div>
+  ${c.dx?`<div class="dsec"><div class="dl">Diagnosis</div><div class="dv" style="margin-top:3px">${c.dx}</div></div>`:''}
+  ${c.nt?`<div class="dsec"><div class="dl">Notes</div><div class="dnotes">${c.nt}</div></div>`:''}
+  <div class="dsec" style="border:none"><div class="dl">Added</div><div class="dv" style="font-size:12px;color:var(--t3)">${c.created?new Date(c.created).toLocaleString('th-TH'):'–'}</div></div>
+  <div class="dacts">
+    ${!c.dc?`<button class="ab ap" onclick="cls('ov-det');setTimeout(()=>openFU('${c.id}'),180)">📅 Set Follow-up Date</button>`:''}
+    <button class="ab aw" onclick="openEdit('${c.id}')">✏️ Edit Case</button>
+    <button class="ab agr" onclick="star('${c.id}');openDet('${c.id}')">${c.st?'☆ Remove VIP':'⭐ Mark as VIP'}</button>
+    ${c.dc?`<button class="ab ag" onclick="undc('${c.id}');cls('ov-det')">↩ Reactivate</button>`:`<button class="ab" style="background:rgba(255,107,107,.15);color:var(--r)" onclick="dc('${c.id}');cls('ov-det')">🏠 Discharge</button>`}
+    <button class="ab ard" onclick="del('${c.id}')">🗑 Delete Case</button>
+  </div>`;
+  open('ov-det');
+}
+
+/* ===== ADD/EDIT ===== */
+function openAdd(){
+  document.getElementById('eid').value='';
+  document.getElementById('ft-title').textContent='New Consult';
+  ['fn','fhn','fwd','fdx','fnt'].forEach(i=>document.getElementById(i).value='');
+  document.getElementById('fty').value='';document.getElementById('ffu').value='';
+  open('ov-add');
+}
+function openEdit(id){
+  const c=load().find(x=>x.id===id);if(!c)return;
+  document.getElementById('eid').value=id;
+  document.getElementById('ft-title').textContent='Edit Consult';
+  document.getElementById('fn').value=c.nm||'';document.getElementById('fhn').value=c.hn||'';
+  document.getElementById('fwd').value=c.wd||'';document.getElementById('fdx').value=c.dx||'';
+  document.getElementById('fty').value=c.ty||'';document.getElementById('ffu').value=c.fu||'';
+  document.getElementById('fnt').value=c.nt||'';
+  cls('ov-det');setTimeout(()=>open('ov-add'),180);
+}
+async function saveCase(){
+  const nm=document.getElementById('fn').value.trim(),ty=document.getElementById('fty').value;
+  if(!nm)return toast('⚠ Enter patient name');
+  if(!ty)return toast('⚠ Select a category');
+  const id=document.getElementById('eid').value||uid_();
+  const existing=load().find(x=>x.id===id)||{};
+  const data={
+    id,nm,ty,
+    hn:document.getElementById('fhn').value.trim(),
+    wd:document.getElementById('fwd').value.trim(),
+    dx:document.getElementById('fdx').value.trim(),
+    fu:document.getElementById('ffu').value,
+    nt:document.getElementById('fnt').value.trim(),
+    st:existing.st||false,
+    dc:existing.dc||false,
+    dcDate:existing.dcDate||null,
+    created:existing.created||new Date().toISOString(),
+    upd:new Date().toISOString()
+  };
+  cls('ov-add');
+  await window._saveToCloud(data);
+  toast(existing.created?'✅ Updated':'✅ Case added');
+}
+
+/* ===== FU ===== */
+function openFU(id){fuId=id;const c=load().find(x=>x.id===id);document.getElementById('fuinp').value=c?.fu||'';open('ov-fu')}
+async function saveFU(){
+  if(!fuId)return;
+  const c=load().find(x=>x.id===fuId);if(!c)return;
+  const updated={...c,fu:document.getElementById('fuinp').value,upd:new Date().toISOString()};
+  cls('ov-fu');
+  await window._saveToCloud(updated);
+  toast('📅 Follow-up updated');
+}
+function qd(n,id){const el=document.getElementById(id);const base=el.value?new Date(el.value+'T00:00:00'):new Date();base.setDate(base.getDate()+n);el.value=base.toISOString().split('T')[0]}
+function qdToday(id){document.getElementById(id).value=new Date().toISOString().split('T')[0]}
+
+/* ===== ACTIONS ===== */
+async function star(id){
+  const c=load().find(x=>x.id===id);if(!c)return;
+  await window._saveToCloud({...c,st:!c.st,upd:new Date().toISOString()});
+  toast(c.st?'☆ Removed from VIP':'⭐ Marked VIP');
+}
+async function dc(id){
+  const c=load().find(x=>x.id===id);if(!c)return;
+  await window._saveToCloud({...c,dc:true,dcDate:today(),upd:new Date().toISOString()});
+  toast('🏠 Discharged');
+}
+async function undc(id){
+  const c=load().find(x=>x.id===id);if(!c)return;
+  await window._saveToCloud({...c,dc:false,dcDate:null,upd:new Date().toISOString()});
+  toast('↩ Reactivated');
+}
+function del(id){
+  showConf('🗑','Delete case?','This case will be permanently deleted.',
+    'Delete',async()=>{cls('ov-det');await window._deleteFromCloud(id);toast('🗑 Deleted')});
+}
+function confirmClearAll(){
+  showConf('⚠️','Delete ALL data?','Every patient record will be permanently erased from your account. This cannot be undone.',
+    'Delete All',async()=>{await window._clearAllFromCloud();toast('🗑 All data cleared')});
+}
+
+/* ===== CONFIRM ===== */
+let confCb=null;
+function showConf(icon,title,msg,okLabel,cb){
+  confCb=cb;
+  document.getElementById('conf-icon').textContent=icon;
+  document.getElementById('conf-title').textContent=title;
+  document.getElementById('conf-msg').textContent=msg;
+  document.getElementById('conf-ok-btn').textContent=okLabel;
+  document.getElementById('conf-wrap').classList.add('on');
+}
+function confOk(){document.getElementById('conf-wrap').classList.remove('on');if(confCb)confCb();confCb=null}
+function confCancel(){document.getElementById('conf-wrap').classList.remove('on');confCb=null}
+window.showConf=showConf;
+
+/* ===== EXPORT ===== */
+function expCSV(){
+  const hdr=['Name','HN','Ward','Dx','Type','FU Date','DC Date','Notes','Created'];
+  const rows=load().map(c=>[c.nm,c.hn,c.wd,c.dx,c.ty,c.fu,c.dcDate,c.nt,(c.created||'').split('T')[0]].map(v=>`"${(v||'').replace(/"/g,'""')}"`).join(','));
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob(['\uFEFF'+[hdr.join(','),...rows].join('\n')],{type:'text/csv;charset=utf-8'}));
+  a.download=`rehab_${today()}.csv`;a.click();toast('⬇ CSV exported');
+}
+
+/* ===== UTILS ===== */
+function set(id,h){const e=document.getElementById(id);if(e)e.innerHTML=h}
+function open(id){document.getElementById(id).classList.add('on')}
+function cls(id){document.getElementById(id).classList.remove('on')}
+function bkd(e,id){if(e.target===document.getElementById(id))cls(id)}
+let toastTimer=null;
+function toast(m){const e=document.getElementById('toast');e.textContent=m;e.classList.add('on');clearTimeout(toastTimer);toastTimer=setTimeout(()=>e.classList.remove('on'),2200)}
+window.toast=toast;
+
+window._cases=[];
+</script>
+</body>
+</html>
