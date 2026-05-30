@@ -333,8 +333,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg
 <!-- FIREBASE -->
 <script type="module">
 import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
-import{getAuth,GoogleAuthProvider,signInWithRedirect,getRedirectResult,signOut,onAuthStateChanged}from'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-import{getFirestore,collection,doc,setDoc,deleteDoc,onSnapshot,query,orderBy}from'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+import{getAuth,GoogleAuthProvider,signInWithPopup,signInWithRedirect,getRedirectResult,signOut,onAuthStateChanged,browserLocalPersistence,setPersistence}from'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+import{getFirestore,collection,doc,setDoc,deleteDoc,onSnapshot,query,orderBy,getDocs}from'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
 const cfg={
   apiKey:"AIzaSyCfFKjk49sIs9ybiCkJzqC2j0YAOf7i5YI",
@@ -345,13 +345,16 @@ const cfg={
   appId:"1:419932775509:web:35594c443aee67da5f20dc"
 };
 
-const app=initializeApp(cfg);
-const auth=getAuth(app);
-const db=getFirestore(app);
+const fbapp=initializeApp(cfg);
+const auth=getAuth(fbapp);
+const db=getFirestore(fbapp);
 const provider=new GoogleAuthProvider();
+provider.setCustomParameters({prompt:'select_account'});
+
+// Force local persistence so Safari keeps session
+setPersistence(auth,browserLocalPersistence).catch(()=>{});
 
 let uid=null,unsub=null;
-// cache in memory — no localStorage
 window._cases=[];
 
 function showApp(){document.getElementById('app').style.display='';document.getElementById('loading').classList.add('h');document.getElementById('login-screen').classList.add('h')}
@@ -384,6 +387,17 @@ function setSyncBusy(b){
   if(d)d.classList.toggle('busy',b);
 }
 
+// Check for redirect result first, then listen for auth state
+showLoading('Checking sign-in...');
+getRedirectResult(auth).then(result=>{
+  if(result?.user){
+    // Redirect sign-in succeeded — onAuthStateChanged will fire
+  }
+}).catch(e=>{
+  console.error('Redirect error:',e.code,e.message);
+  // Don't show error here — fall through to onAuthStateChanged
+});
+
 onAuthStateChanged(auth,user=>{
   if(user){
     uid=user.uid;
@@ -400,21 +414,29 @@ onAuthStateChanged(auth,user=>{
   }
 });
 
-// Handle redirect result when returning from Google sign-in
-getRedirectResult(auth).then(result=>{
-  if(result?.user){
-    // Successfully signed in via redirect — onAuthStateChanged handles the rest
+window.signIn=async()=>{
+  // Try popup first (works on desktop/Chrome)
+  // Fall back to redirect (needed for Safari/PWA)
+  const isSafari=/^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+  const isPWA=window.navigator.standalone===true;
+  if(isSafari||isPWA){
+    showLoading('Redirecting to Google...');
+    signInWithRedirect(auth,provider);
+  } else {
+    try{
+      showLoading('Signing in...');
+      await signInWithPopup(auth,provider);
+    }catch(e){
+      document.getElementById('loading').classList.add('h');
+      document.getElementById('login-screen').classList.remove('h');
+      if(e.code==='auth/popup-blocked'||e.code==='auth/operation-not-supported-in-this-environment'){
+        showLoading('Redirecting to Google...');
+        signInWithRedirect(auth,provider);
+      } else if(e.code!=='auth/popup-closed-by-user'){
+        window.toast('Sign-in failed: '+e.code);
+      }
+    }
   }
-}).catch(e=>{
-  document.getElementById('loading').classList.add('h');
-  document.getElementById('login-screen').classList.remove('h');
-  if(e.code!=='auth/popup-closed-by-user')window.toast('Sign-in failed — try again');
-});
-
-// Expose Firebase ops to window
-window.signIn=()=>{
-  showLoading('Redirecting to Google...');
-  signInWithRedirect(auth,provider);
 };
 
 window.signOutUser=()=>{
@@ -446,10 +468,8 @@ window._clearAllFromCloud=async()=>{
   if(!uid)return;
   setSyncBusy(true);
   try{
-    const snap=await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js')
-      .then(m=>m.getDocs(collection(db,`users/${uid}/cases`)));
-    const dels=snap.docs.map(d=>deleteDoc(doc(db,`users/${uid}/cases`,d.id)));
-    await Promise.all(dels);
+    const snap=await getDocs(collection(db,`users/${uid}/cases`));
+    await Promise.all(snap.docs.map(d=>deleteDoc(doc(db,`users/${uid}/cases`,d.id))));
   }catch(e){window.toast('⚠ Clear failed');console.error(e);}
 };
 </script>
