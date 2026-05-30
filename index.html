@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Rehab">
-<title>Rehab Consult</title>
+<meta name="apple-mobile-web-app-title" content="E-Record">
+<title>Consult E-Record</title>
 <style>
 :root{
   --bg:#0f1117;--s:#1a1d27;--s2:#232637;--bo:rgba(255,255,255,.08);--bo2:rgba(255,255,255,.14);
@@ -184,16 +184,46 @@ body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg
 .tc-i{background:rgba(255,69,58,.2);color:#ff453a}
 .tc-pr{background:rgba(48,209,88,.15);color:#30d158}
 .tc-h{background:rgba(100,210,255,.15);color:#5ac8fa}
-@keyframes fi{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
-.card{animation:fi .2s ease both}
+/* GRANNY ANIMATION */
+.granny-wrap{display:flex;justify-content:center;align-items:center;width:100%;height:80px;position:relative;overflow:hidden}
+.granny{
+  font-size:60px;line-height:1;
+  cursor:pointer;user-select:none;
+  display:inline-block;
+  animation:grannyBob .6s ease-in-out infinite;
+  transform-origin:bottom center;
+}
+.granny::after{content:'🏃';position:absolute;opacity:0}
+@keyframes grannyBob{
+  0%  {transform:translateY(0px) rotate(-2deg)}
+  25% {transform:translateY(-6px) rotate(1deg)}
+  50% {transform:translateY(0px) rotate(-1deg)}
+  75% {transform:translateY(-3px) rotate(2deg)}
+  100%{transform:translateY(0px) rotate(-2deg)}
+}
+.granny.turbo{animation:grannyBobFast .15s ease-in-out infinite!important;font-size:64px}
+@keyframes grannyBobFast{
+  0%  {transform:translateY(0px) rotate(-4deg) scaleX(1)}
+  50% {transform:translateY(-10px) rotate(4deg) scaleX(.95)}
+  100%{transform:translateY(0px) rotate(-4deg) scaleX(1)}
+}
+/* OPD CHECK BUTTON */
+.opd-btn{width:26px;height:26px;background:none;border:none;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:transform .15s;filter:grayscale(1) opacity(.35)}
+.opd-btn.on{filter:none}
+.opd-btn:active{transform:scale(1.25)}
+/* DISCLAIMER */
+.disclaimer{position:fixed;bottom:calc(var(--saf-b) + 2px);left:0;right:0;text-align:right;padding:2px 14px;font-size:9px;color:var(--t3);pointer-events:none;z-index:55}
+
 </style>
 </head>
 <body>
 
 <!-- LOGIN -->
 <div id="login-screen">
-  <div class="login-logo">🏥</div>
-  <div class="login-title">Rehab <b>Consult</b></div>
+  <div class="login-logo" id="login-granny">
+    <div class="granny-wrap"><span class="granny" onclick="grannyTurbo()">👵</span></div>
+  </div>
+  <div class="login-title">Consult <b>E-Record</b></div>
 
   <!-- MODE SELECTOR -->
   <div id="auth-tabs" style="display:flex;gap:0;background:var(--s2);border-radius:12px;padding:3px;width:100%">
@@ -326,10 +356,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg
 <div id="app" style="display:none">
   <div id="hdr">
     <div class="htop">
-      <div class="htitle">Rehab <b>Consult</b></div>
+      <div class="htitle">Consult <b>E-Record</b></div>
       <div style="display:flex;align-items:center;gap:8px">
         <button class="hbin" onclick="confirmClearAll()" aria-label="Clear all data">🗑</button>
-        <button class="hbin" onclick="doSignOut()" title="Sign out" style="font-size:16px;background:var(--s2);color:var(--t2)" id="user-lbl">🔒</button>
+        <button class="hbin" onclick="doSignOut()" title="Sign out" style="font-size:18px;background:var(--s2);color:var(--t2)" id="user-lbl">🚪</button>
       </div>
     </div>
     <div class="tabs">
@@ -439,6 +469,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg
 </div>
 
 <div class="toast" id="toast"></div>
+<div class="disclaimer">Unofficial — please use with caution</div>
 
 <!-- FIREBASE via CDN -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -522,8 +553,6 @@ function startSession(uid,username){
   _uid=uid;
   localStorage.setItem('rehab_uid',uid);
   localStorage.setItem('rehab_user',username);
-  const ul=document.getElementById('user-lbl');
-  if(ul)ul.textContent=username[0].toUpperCase();
   showApp();
   subscribeData(uid);
 }
@@ -535,8 +564,6 @@ if(savedUID){
   _uid=savedUID;
   showLoading('Loading your data...');
   showApp();
-  const ul=document.getElementById('user-lbl');
-  if(ul&&savedUser)ul.textContent=savedUser[0].toUpperCase();
   subscribeData(_uid);
 } else {
   showLogin('signin');
@@ -698,8 +725,6 @@ window.doSignOut=()=>{
       window._cases=[];_uid=null;
       localStorage.removeItem('rehab_uid');
       localStorage.removeItem('rehab_user');
-      const ul=document.getElementById('user-lbl');
-      if(ul)ul.textContent='🔒';
       showLogin('signin');
       window.render&&window.render();
     });
@@ -762,6 +787,7 @@ function card(c){
     <div class="ca" style="background:${TK[c.ty]||'#6c6fff'}"></div>
     <div class="cr1">
       <div class="cn">${c.nm||'–'}</div>
+      <button class="opd-btn${c.opd?' on':''}" onclick="event.stopPropagation();toggleOpd('${c.id}')" title="OPD appt set">✅</button>
       <button class="sbtn${c.st?' on':''}" onclick="event.stopPropagation();star('${c.id}')" aria-label="VIP">★</button>
     </div>
     <div class="cmeta">
@@ -798,7 +824,7 @@ function rToday(){
   if(ov.length)h+=`<div class="sh">⚠️ Overdue (${ov.length})</div><div class="cards">${ov.map(card).join('')}</div>`;
   if(td.length)h+=`<div class="sh" style="margin-top:8px">📅 Today — ${fd(t)} (${td.length})</div><div class="cards">${td.map(card).join('')}</div>`;
   if(nd.length)h+=`<div class="sh" style="margin-top:8px">No F/U date (${nd.length})</div><div class="cards">${nd.map(card).join('')}</div>`;
-  if(!ov.length&&!td.length&&!nd.length)h+=`<div class="empty"><div class="ei">${act.length?'✅':'🏥'}</div><div class="et">${act.length?'All clear for today':'No active cases'}</div><div class="es">${act.length?act.length+' case(s) with future F/U':'Tap + to add a consult'}</div></div>`;
+  if(!ov.length&&!td.length&&!nd.length)h+=`<div class="empty"><div class="granny-wrap" style="margin-bottom:8px"><span class="granny" onclick="grannyTurbo()">👵</span></div><div class="et">${act.length?'All clear for today':'No active cases'}</div><div class="es">${act.length?act.length+' case(s) with future F/U':'Tap + to add a consult'}</div></div>`;
   set('v-today',h);
 }
 
@@ -1014,6 +1040,17 @@ async function undc(id){
 function del(id){
   showConf('🗑','Delete case?','This case will be permanently deleted.',
     'Delete',async()=>{cls('ov-det');await window._deleteFromCloud(id);toast('🗑 Deleted')});
+}
+async function toggleOpd(id){
+  const c=load().find(x=>x.id===id);if(!c)return;
+  await window._saveToCloud({...c,opd:!c.opd,upd:new Date().toISOString()});
+  toast(c.opd?'OPD appt cleared':'✅ OPD appt set');
+}
+let _grannyTimer=null;
+function grannyTurbo(){
+  document.querySelectorAll('.granny').forEach(g=>g.classList.add('turbo'));
+  clearTimeout(_grannyTimer);
+  _grannyTimer=setTimeout(()=>document.querySelectorAll('.granny').forEach(g=>g.classList.remove('turbo')),3000);
 }
 function confirmClearAll(){
   showConf('⚠️','Delete ALL data?','Every patient record will be permanently erased from your account. This cannot be undone.',
