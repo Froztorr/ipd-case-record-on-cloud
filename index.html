@@ -625,33 +625,61 @@ function subscribeData(uid){
   window.subscribeData=subscribeData;
   if(_unsub)_unsub();
 
-  // 1. Show local cache instantly — zero wait
+  // Always load cache first — works offline and online
   const cached=loadLocalCache(uid);
-  if(cached){window._cases=cached;window.render&&window.render();window.badges&&window.badges()}
+  const cacheWithQueue=mergeCacheWithQueue(uid,cached||[]);
+  window._cases=cacheWithQueue;
+  // Render immediately from cache — never wait for network
+  if(window.render)window.render();
+  if(window.badges)window.badges();
 
-  // 2. Flush any pending offline changes first
+  // Flush queue if online
   flushQueue(uid);
 
-  // 3. Only subscribe if online — use one-time get() instead of persistent listener
-  // to save battery: get once on load, then re-fetch only on visibility restore
+  // Background cloud fetch if online — updates cache silently
   if(!navigator.onLine){setSyncBusy(false);return}
   setSyncBusy(true);
   db.collection('users').doc(uid).collection('cases').orderBy('created','desc').get()
     .then(snap=>{
       const fresh=snap.docs.map(d=>({id:d.id,...d.data()}));
-      // Replace cache entirely — single write, no pile-up
       saveLocalCache(uid,fresh);
       window._cases=fresh;
       setSyncBusy(false);
-      window.render&&window.render();
-      window.badges&&window.badges();
+      if(window.render)window.render();
+      if(window.badges)window.badges();
     })
     .catch(e=>{setSyncBusy(false);console.warn('Fetch failed',e)});
 }
 
-// Re-fetch when coming back online or from background
+// Merge any queued (offline) saves into cached list for accurate offline display
+function mergeCacheWithQueue(uid,cached){
+  const q=loadQueue(uid);
+  let merged=[...cached];
+  // Apply pending saves
+  Object.values(q.saves).forEach(c=>{
+    const idx=merged.findIndex(x=>x.id===c.id);
+    if(idx>=0)merged[idx]=c;else merged.unshift(c);
+  });
+  // Apply pending deletes
+  q.deletes.forEach(id=>{merged=merged.filter(x=>x.id!==id)});
+  return merged;
+}
+
+// Re-fetch when coming back online
 window.addEventListener('online',()=>{
-  if(_uid){flushQueue(_uid);subscribeData(_uid)}
+  if(_uid){flushQueue(_uid);
+    setSyncBusy(true);
+    db.collection('users').doc(_uid).collection('cases').orderBy('created','desc').get()
+      .then(snap=>{
+        const fresh=snap.docs.map(d=>({id:d.id,...d.data()}));
+        saveLocalCache(_uid,fresh);
+        window._cases=fresh;
+        setSyncBusy(false);
+        if(window.render)window.render();
+        if(window.badges)window.badges();
+        window.toast&&window.toast('☁️ Back online — synced');
+      }).catch(()=>setSyncBusy(false));
+  }
 });
 
 function setSyncBusy(b){const d=document.querySelector('.sync-dot');if(d)d.classList.toggle('busy',b)}
@@ -664,16 +692,17 @@ function startSession(uid,username){
   subscribeData(uid);
 }
 
-/* ── Restore session ── */
+/* ── Restore session — show cache instantly, no loading screen ── */
 const savedUID=localStorage.getItem('rehab_uid');
-const savedUser=localStorage.getItem('rehab_user')||'';
 if(savedUID){
   _uid=savedUID;
-  // Show local cache immediately — no loading screen needed
-  const cached=loadLocalCache(savedUID);
-  if(cached){window._cases=cached}
+  // Load cache + any queued offline changes immediately into memory
+  const cached=loadLocalCache(savedUID)||[];
+  window._cases=mergeCacheWithQueue(savedUID,cached);
   showApp();
-  subscribeData(savedUID);
+  // subscribeData will render once more when defined, and sync if online
+  // Use a tiny delay to let the main script define window.render first
+  setTimeout(()=>subscribeData(savedUID),0);
 } else {
   showLogin('signin');
 }
@@ -1441,28 +1470,23 @@ async function adminChangePw(){
 // 1. Pause video + flush queue when backgrounded, re-fetch on foreground
 document.addEventListener('visibilitychange',()=>{
   if(document.hidden){
-    // Stop any pending sync timer — will retry on foreground
     clearTimeout(_syncTimer);
     document.querySelectorAll('video.granny').forEach(v=>{try{v.pause()}catch(e){}});
   } else {
-    // Flush any queued offline changes, then refresh data
-    if(_uid){
-      flushQueue(_uid);
-      // Re-fetch from cloud only if online — replaces cache with fresh data
-      if(navigator.onLine){
-        setSyncBusy(true);
-        db.collection('users').doc(_uid).collection('cases').orderBy('created','desc').get()
-          .then(snap=>{
-            const fresh=snap.docs.map(d=>({id:d.id,...d.data()}));
-            saveLocalCache(_uid,fresh);
-            window._cases=fresh;
-            setSyncBusy(false);
-            window.render&&window.render();
-            window.badges&&window.badges();
-          }).catch(()=>setSyncBusy(false));
-      }
-    }
     document.querySelectorAll('video.granny').forEach(v=>{try{v.play()}catch(e){}});
+    if(_uid&&navigator.onLine){
+      flushQueue(_uid);
+      setSyncBusy(true);
+      db.collection('users').doc(_uid).collection('cases').orderBy('created','desc').get()
+        .then(snap=>{
+          const fresh=snap.docs.map(d=>({id:d.id,...d.data()}));
+          saveLocalCache(_uid,fresh);
+          window._cases=fresh;
+          setSyncBusy(false);
+          if(window.render)window.render();
+          if(window.badges)window.badges();
+        }).catch(()=>setSyncBusy(false));
+    }
   }
 });
 
