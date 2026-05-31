@@ -1018,42 +1018,78 @@ function rImp(){
 }
 
 /* ===== ALL CASES ===== */
-function setDoneFilter(f){doneFilter=f;rDone()}
+function setDoneFilter(f){doneFilter=f;rDoneCards()}
 function rDone(){
+  // Render controls once — search input stays in DOM, never recreated
+  set('v-done',`
+    <div class="sw"><span class="sico">🔍</span><input class="si" id="done-search-input" placeholder="Search..." type="search" autocomplete="off"></div>
+    <div id="done-chips"></div>
+    <div id="done-cards"></div>
+  `);
+  // Restore search value without triggering re-render
+  const si=document.getElementById('done-search-input');
+  if(si){si.value=doneSearch;si.addEventListener('input',e=>{doneSearch=e.target.value;rDoneCards()})}
+  rDoneChips();
+  rDoneCards();
+}
+function rDoneChips(){
+  set('done-chips',chips(TYPES,doneFilter,'setDoneFilter'));
+}
+function rDoneCards(){
   let cases=load().filter(c=>!c.dc);
   if(doneSearch){const q=doneSearch.toLowerCase();cases=cases.filter(c=>[c.nm,c.hn,c.wd,c.dx].some(x=>(x||'').toLowerCase().includes(q)))}
   if(doneFilter!=='All')cases=cases.filter(c=>c.ty===doneFilter);
-  let h=`<div class="sw"><span class="sico">🔍</span><input class="si" placeholder="Search..." value="${doneSearch}" oninput="doneSearch=this.value;rDone()" type="search"></div>`;
-  h+=chips(TYPES,doneFilter,'setDoneFilter');
-  if(!cases.length){h+=`<div class="empty"><div class="ei">🏥</div><div class="et">No active cases</div><div class="es">Tap + to add a consult</div></div>`;set('v-done',h);return}
-  const withDate=cases.filter(c=>c.fu).sort((a,b)=>a.fu.localeCompare(b.fu));
-  const noDate=cases.filter(c=>!c.fu);
-  if(withDate.length){const g={};withDate.forEach(c=>{(g[c.fu]=g[c.fu]||[]).push(c)});h+=Object.keys(g).sort().map(k=>`<div class="sh">📋 ${dayLbl(k)} (${g[k].length})</div><div class="cards">${g[k].map(card).join('')}</div>`).join('')}
-  if(noDate.length)h+=`<div class="sh">No F/U date (${noDate.length})</div><div class="cards">${noDate.map(card).join('')}</div>`;
-  set('v-done',h);
+  let h='';
+  if(!cases.length){h=`<div class="empty"><div class="ei">🏥</div><div class="et">No active cases</div><div class="es">Tap + to add a consult</div></div>`}
+  else{
+    const withDate=cases.filter(c=>c.fu).sort((a,b)=>a.fu.localeCompare(b.fu));
+    const noDate=cases.filter(c=>!c.fu);
+    if(withDate.length){const g={};withDate.forEach(c=>{(g[c.fu]=g[c.fu]||[]).push(c)});h+=Object.keys(g).sort().map(k=>`<div class="sh">📋 ${dayLbl(k)} (${g[k].length})</div><div class="cards">${g[k].map(card).join('')}</div>`).join('')}
+    if(noDate.length)h+=`<div class="sh">No F/U date (${noDate.length})</div><div class="cards">${noDate.map(card).join('')}</div>`;
+  }
+  set('done-cards',h);
 }
 
 /* ===== DISCHARGED ===== */
-function setDcFilter(f){dcFilter=f;rDc()}
-function dcApplyDate(){dcFrom=document.getElementById('dc-from').value;dcTo=document.getElementById('dc-to').value;rDc()}
+function setDcFilter(f){dcFilter=f;rDcCards()}
+function dcApplyDate(){
+  dcFrom=document.getElementById('dc-from')?.value||'';
+  dcTo=document.getElementById('dc-to')?.value||'';
+  rDcCards();
+}
 function rDc(){
+  // Render controls once — inputs stay in DOM
+  set('v-dc',`
+    <div class="sw"><span class="sico">🔍</span><input class="si" id="dc-search-input" placeholder="Search discharged..." type="search" autocomplete="off"></div>
+    <div id="dc-chips"></div>
+    <div class="dr"><label>From</label><input class="fi" id="dc-from" type="date" value="${dcFrom}"><label>To</label><input class="fi" id="dc-to" type="date" value="${dcTo}"><button onclick="dcApplyDate()" style="padding:8px 12px;border-radius:8px;background:var(--a);border:none;color:#fff;font-size:13px;cursor:pointer;flex-shrink:0">🔍</button></div>
+    <button class="expbtn" onclick="expCSV()">⬇ Export CSV</button>
+    <div id="dc-cards"></div>
+  `);
+  const si=document.getElementById('dc-search-input');
+  if(si){si.value=dcSearch;si.addEventListener('input',e=>{dcSearch=e.target.value;rDcCards()})}
+  rDcChips();
+  rDcCards();
+}
+function rDcChips(){
+  set('dc-chips',chips(TYPES,dcFilter,'setDcFilter'));
+}
+function rDcCards(){
   let cases=load().filter(c=>c.dc);
   if(dcSearch){const q=dcSearch.toLowerCase();cases=cases.filter(c=>[c.nm,c.hn,c.wd,c.dx].some(x=>(x||'').toLowerCase().includes(q)))}
   if(dcFilter!=='All')cases=cases.filter(c=>c.ty===dcFilter);
   if(dcFrom||dcTo){cases=cases.filter(c=>{const d=c.dcDate||c.fu||'';return(!dcFrom||d>=dcFrom)&&(!dcTo||d<=dcTo)})}
   cases.sort((a,b)=>(b.dcDate||b.fu||'').localeCompare(a.dcDate||a.fu||''));
-  let h=`<div class="sw"><span class="sico">🔍</span><input class="si" placeholder="Search discharged..." value="${dcSearch}" oninput="dcSearch=this.value;rDc()" type="search"></div>`;
-  h+=chips(TYPES,dcFilter,'setDcFilter');
-  h+=`<div class="dr"><label>From</label><input class="fi" id="dc-from" type="date" value="${dcFrom}"><label>To</label><input class="fi" id="dc-to" type="date" value="${dcTo}"><button onclick="dcApplyDate()" style="padding:8px 12px;border-radius:8px;background:var(--a);border:none;color:#fff;font-size:13px;cursor:pointer;flex-shrink:0">🔍</button></div>`;
-  h+=`<button class="expbtn" onclick="expCSV()">⬇ Export CSV</button>`;
+  let h='';
   if(!cases.length){
-    h+=`<div class="empty"><div class="ei">🏠</div><div class="et">No discharged patients</div><div class="es">${(dcFrom||dcTo)?'No matches for selected range':'Use Discharge on any active case'}</div></div>`;
+    h=`<div class="empty"><div class="ei">🏠</div><div class="et">No discharged patients</div><div class="es">${(dcFrom||dcTo)?'No matches for selected range':'Use Discharge on any active case'}</div></div>`;
   } else {
     const g={};cases.forEach(c=>{const k=monthKey(c.dcDate||c.fu);(g[k]=g[k]||[]).push(c)});
-    const sorted=Object.keys(g).sort((a,b)=>{const mn=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];const toN=s=>{const[m,y]=s.split(' ');return parseInt(y)*12+mn.indexOf(m)};return toN(b)-toN(a)});
+    const mn=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const sorted=Object.keys(g).sort((a,b)=>{const toN=s=>{const[m,y]=s.split(' ');return parseInt(y)*12+mn.indexOf(m)};return toN(b)-toN(a)});
     h+=sorted.map(k=>`<div class="mhdr">📦 ${k} <span>(${g[k].length})</span></div><div class="cards">${g[k].map(card).join('')}</div>`).join('');
   }
-  set('v-dc',h);
+  set('dc-cards',h);
 }
 
 /* ===== VIP ===== */
@@ -1117,8 +1153,15 @@ function go(t){
 function render(){
   if(tab==='today')rToday();
   else if(tab==='imp')rImp();
-  else if(tab==='done')rDone();
-  else if(tab==='dc')rDc();
+  else if(tab==='done'){
+    // Only re-render cards if scaffold already exists, else full render
+    if(document.getElementById('done-cards'))rDoneCards();
+    else rDone();
+  }
+  else if(tab==='dc'){
+    if(document.getElementById('dc-cards'))rDcCards();
+    else rDc();
+  }
   else if(tab==='vip')rVip();
   else rStats();
   badges();
