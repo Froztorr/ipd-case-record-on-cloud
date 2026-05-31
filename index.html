@@ -468,6 +468,9 @@ firebase.initializeApp({
 const db=firebase.firestore();
 let _uid=null,_unsub=null,_fpUser=null,_fpData=null;
 window._cases=[];
+// Expose for visibility handler
+Object.defineProperty(window,'_uid',{get:()=>_uid,set:v=>_uid=v});
+Object.defineProperty(window,'_unsub',{get:()=>_unsub,set:v=>_unsub=v});
 
 async function sha(s){
   const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode('rehab2024_'+s));
@@ -1079,6 +1082,46 @@ function toast(m){const e=document.getElementById('toast');e.textContent=m;e.cla
 window.toast=toast;
 
 window._cases=[];
+
+/* ── Battery optimizations ── */
+
+// 1. Pause Firestore listener + video when app goes to background
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden){
+    // Disconnect Firestore — stops network polling entirely
+    if(window._unsub){window._unsub();window._unsub=null}
+    // Pause all granny videos
+    document.querySelectorAll('video.granny').forEach(v=>{try{v.pause()}catch(e){}});
+  } else {
+    // Reconnect Firestore when user returns
+    if(window._uid&&!window._unsub)subscribeData(window._uid);
+    // Resume videos
+    document.querySelectorAll('video.granny').forEach(v=>{try{v.play()}catch(e){}});
+  }
+});
+
+// 2. Pause video when it scrolls off screen, resume when visible
+const _iObs=new IntersectionObserver(entries=>{
+  entries.forEach(e=>{
+    if(e.target.tagName==='VIDEO'){
+      if(e.isIntersecting){try{e.target.play()}catch(x){}}
+      else{try{e.target.pause()}catch(x){}}
+    }
+  });
+},{threshold:0.1});
+new MutationObserver(()=>{
+  document.querySelectorAll('video.granny').forEach(v=>_iObs.observe(v));
+}).observe(document.body,{childList:true,subtree:true});
+document.querySelectorAll('video.granny').forEach(v=>_iObs.observe(v));
+
+// 3. Throttle render to one per animation frame — prevents redundant repaints
+const _rawRender=window.render;
+let _rPending=false;
+window.render=()=>{
+  if(_rPending)return;
+  _rPending=true;
+  requestAnimationFrame(()=>{_rawRender&&_rawRender();_rPending=false});
+};
 </script>
 </body>
 </html>
