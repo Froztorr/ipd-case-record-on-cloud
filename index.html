@@ -571,18 +571,89 @@ window.authMode=function(m){
 };
 
 /* ── Subscribe data ── */
-function subscribeData(userId){
+const CACHE_KEY=uid=>`rehab_cache_${uid}`;
+const QUEUE_KEY=uid=>`rehab_queue_${uid}`;
+
+function loadLocalCache(uid){
+  try{const d=localStorage.getItem(CACHE_KEY(uid));return d?JSON.parse(d):null}catch{return null}
+}
+function saveLocalCache(uid,cases){
+  try{localStorage.setItem(CACHE_KEY(uid),JSON.stringify(cases))}catch(e){console.warn('Cache write failed',e)}
+}
+function loadQueue(uid){
+  try{const d=localStorage.getItem(QUEUE_KEY(uid));return d?JSON.parse(d):{saves:{},deletes:[]}}catch{return{saves:{},deletes:[]}}
+}
+function saveQueue(uid,q){
+  try{localStorage.setItem(QUEUE_KEY(uid),JSON.stringify(q))}catch(e){console.warn('Queue write failed',e)}
+}
+function clearQueue(uid){localStorage.removeItem(QUEUE_KEY(uid))}
+
+function applyToCache(uid,c){
+  // Replace single case in cache — no pile-up
+  const cases=loadLocalCache(uid)||[];
+  const idx=cases.findIndex(x=>x.id===c.id);
+  if(idx>=0)cases[idx]=c;else cases.unshift(c);
+  saveLocalCache(uid,cases);
+  window._cases=cases;
+}
+function removeFromCache(uid,id){
+  const cases=(loadLocalCache(uid)||[]).filter(x=>x.id!==id);
+  saveLocalCache(uid,cases);
+  window._cases=cases;
+}
+
+let _syncTimer=null;
+async function flushQueue(uid){
+  if(!navigator.onLine)return;
+  const q=loadQueue(uid);
+  const saves=Object.values(q.saves);
+  const deletes=q.deletes;
+  if(!saves.length&&!deletes.length)return;
+  setSyncBusy(true);
+  try{
+    // Batch all pending saves and deletes
+    await Promise.all([
+      ...saves.map(c=>db.collection('users').doc(uid).collection('cases').doc(c.id).set(c)),
+      ...deletes.map(id=>db.collection('users').doc(uid).collection('cases').doc(id).delete())
+    ]);
+    clearQueue(uid);
+    setSyncBusy(false);
+  }catch(e){setSyncBusy(false);console.warn('Flush failed',e)}
+}
+
+function subscribeData(uid){
   window.subscribeData=subscribeData;
   if(_unsub)_unsub();
+
+  // 1. Show local cache instantly — zero wait
+  const cached=loadLocalCache(uid);
+  if(cached){window._cases=cached;window.render&&window.render();window.badges&&window.badges()}
+
+  // 2. Flush any pending offline changes first
+  flushQueue(uid);
+
+  // 3. Only subscribe if online — use one-time get() instead of persistent listener
+  // to save battery: get once on load, then re-fetch only on visibility restore
+  if(!navigator.onLine){setSyncBusy(false);return}
   setSyncBusy(true);
-  _unsub=db.collection('users').doc(userId).collection('cases').orderBy('created','desc')
-    .onSnapshot(snap=>{
-      window._cases=snap.docs.map(d=>({id:d.id,...d.data()}));
+  db.collection('users').doc(uid).collection('cases').orderBy('created','desc').get()
+    .then(snap=>{
+      const fresh=snap.docs.map(d=>({id:d.id,...d.data()}));
+      // Replace cache entirely — single write, no pile-up
+      saveLocalCache(uid,fresh);
+      window._cases=fresh;
       setSyncBusy(false);
       window.render&&window.render();
       window.badges&&window.badges();
-    },err=>{setSyncBusy(false);window.toast&&window.toast('⚠ Sync error')});
+    })
+    .catch(e=>{setSyncBusy(false);console.warn('Fetch failed',e)});
 }
+
+// Re-fetch when coming back online or from background
+window.addEventListener('online',()=>{
+  if(_uid){flushQueue(_uid);subscribeData(_uid)}
+});
+
 function setSyncBusy(b){const d=document.querySelector('.sync-dot');if(d)d.classList.toggle('busy',b)}
 
 function startSession(uid,username){
@@ -598,9 +669,11 @@ const savedUID=localStorage.getItem('rehab_uid');
 const savedUser=localStorage.getItem('rehab_user')||'';
 if(savedUID){
   _uid=savedUID;
-  showLoading('Loading your data...');
+  // Show local cache immediately — no loading screen needed
+  const cached=loadLocalCache(savedUID);
+  if(cached){window._cases=cached}
   showApp();
-  subscribeData(_uid);
+  subscribeData(savedUID);
 } else {
   showLogin('signin');
 }
@@ -758,6 +831,8 @@ window.doSignOut=()=>{
   window.showConf('🔒','Sign out?','You will need your username and password to sign back in.',
     'Sign out',()=>{
       if(_unsub){_unsub();_unsub=null}
+      // Clean up local cache and queue on sign out
+      if(_uid){localStorage.removeItem(CACHE_KEY(_uid));localStorage.removeItem(QUEUE_KEY(_uid))}
       window._cases=[];_uid=null;
       localStorage.removeItem('rehab_uid');
       localStorage.removeItem('rehab_user');
@@ -766,23 +841,58 @@ window.doSignOut=()=>{
     });
 };
 
-/* ── CLOUD OPS ── */
+/* ── OFFLINE-FIRST OPS ── */
+// Save: write to local cache + queue immediately, flush to cloud if online
 window._saveToCloud=async(c)=>{
-  if(!_uid)return;setSyncBusy(true);
-  try{await db.collection('users').doc(_uid).collection('cases').doc(c.id).set(c)}
-  catch(e){window.toast('⚠ Save failed');console.error(e)}
+  if(!_uid)return;
+  // 1. Update local cache instantly
+  applyToCache(_uid,c);
+  window.render&&window.render();
+  window.badges&&window.badges();
+  // 2. Queue for cloud
+  const q=loadQueue(_uid);
+  q.saves[c.id]=c; // overwrite same id — no pile-up
+  q.deletes=q.deletes.filter(id=>id!==c.id);
+  saveQueue(_uid,q);
+  // 3. Flush if online — debounced to batch rapid saves
+  if(navigator.onLine){
+    clearTimeout(_syncTimer);
+    _syncTimer=setTimeout(()=>flushQueue(_uid),1500);
+  }
 };
+
+// Delete: remove from cache immediately, queue deletion
 window._deleteFromCloud=async(id)=>{
-  if(!_uid)return;setSyncBusy(true);
-  try{await db.collection('users').doc(_uid).collection('cases').doc(id).delete()}
-  catch(e){window.toast('⚠ Delete failed');console.error(e)}
+  if(!_uid)return;
+  removeFromCache(_uid,id);
+  window.render&&window.render();
+  window.badges&&window.badges();
+  const q=loadQueue(_uid);
+  delete q.saves[id];
+  if(!q.deletes.includes(id))q.deletes.push(id);
+  saveQueue(_uid,q);
+  if(navigator.onLine){
+    clearTimeout(_syncTimer);
+    _syncTimer=setTimeout(()=>flushQueue(_uid),1500);
+  }
 };
+
+// Clear all: wipe cache, queue, and cloud
 window._clearAllFromCloud=async()=>{
-  if(!_uid)return;setSyncBusy(true);
-  try{
-    const snap=await db.collection('users').doc(_uid).collection('cases').get();
-    await Promise.all(snap.docs.map(d=>d.ref.delete()));
-  }catch(e){window.toast('⚠ Clear failed');console.error(e)}
+  if(!_uid)return;
+  saveLocalCache(_uid,[]);
+  clearQueue(_uid);
+  window._cases=[];
+  window.render&&window.render();
+  window.badges&&window.badges();
+  if(navigator.onLine){
+    setSyncBusy(true);
+    try{
+      const snap=await db.collection('users').doc(_uid).collection('cases').get();
+      await Promise.all(snap.docs.map(d=>d.ref.delete()));
+      setSyncBusy(false);
+    }catch(e){setSyncBusy(false);console.warn(e)}
+  }
 };
 </script>
 
@@ -845,7 +955,10 @@ function chips(types,cur,fn){
   return`<div class="fw">${['All',...types].map(t=>`<button class="chip${cur===t?' on':''}" onclick="${fn}('${t}')">${t}</button>`).join('')}</div>`;
 }
 
-function syncBar(){return`<div class="sync"><div class="sync-dot" id="sync-dot-inline"></div>Synced to cloud</div>`}
+function syncBar(){
+  const online=navigator.onLine;
+  return`<div class="sync"><div class="sync-dot${online?'':' busy'}" id="sync-dot-inline"></div>${online?'Synced to cloud':'Offline — changes saved locally'}</div>`;
+}
 
 /* ===== TODAY ===== */
 function rToday(){
@@ -1073,10 +1186,10 @@ async function saveCase(){
     nt:document.getElementById('fnt').value.trim(),
     // Preserve firstVisit — only set on new case, editable but not overwritten by follow-up
     firstVisit:document.getElementById('fvisit').value||existing.firstVisit||today(),
-    st:existing.st||false,
+    st:_formVip,
     dc:existing.dc||false,
     dcDate:existing.dcDate||null,
-    opd:existing.opd||false,
+    opd:_formOpd,
     created:existing.created||new Date().toISOString(),
     upd:new Date().toISOString()
   };
@@ -1325,17 +1438,30 @@ async function adminChangePw(){
 
 /* ── Battery optimizations ── */
 
-// 1. Pause Firestore listener + video when app goes to background
+// 1. Pause video + flush queue when backgrounded, re-fetch on foreground
 document.addEventListener('visibilitychange',()=>{
   if(document.hidden){
-    // Disconnect Firestore — stops network polling entirely
-    if(window._unsub){window._unsub();window._unsub=null}
-    // Pause all granny videos
+    // Stop any pending sync timer — will retry on foreground
+    clearTimeout(_syncTimer);
     document.querySelectorAll('video.granny').forEach(v=>{try{v.pause()}catch(e){}});
   } else {
-    // Reconnect Firestore when user returns
-    if(window._uid&&!window._unsub)subscribeData(window._uid);
-    // Resume videos
+    // Flush any queued offline changes, then refresh data
+    if(_uid){
+      flushQueue(_uid);
+      // Re-fetch from cloud only if online — replaces cache with fresh data
+      if(navigator.onLine){
+        setSyncBusy(true);
+        db.collection('users').doc(_uid).collection('cases').orderBy('created','desc').get()
+          .then(snap=>{
+            const fresh=snap.docs.map(d=>({id:d.id,...d.data()}));
+            saveLocalCache(_uid,fresh);
+            window._cases=fresh;
+            setSyncBusy(false);
+            window.render&&window.render();
+            window.badges&&window.badges();
+          }).catch(()=>setSyncBusy(false));
+      }
+    }
     document.querySelectorAll('video.granny').forEach(v=>{try{v.play()}catch(e){}});
   }
 });
