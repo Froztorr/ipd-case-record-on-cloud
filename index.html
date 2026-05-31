@@ -406,6 +406,20 @@ body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg
     <input class="fi" id="fvisit" type="date">
     <div style="font-size:11px;color:var(--t3);margin-top:4px">📊 Stats count first visits only — set to today by default</div>
    </div>
+   <!-- VIP + OPD toggles -->
+   <div class="fg">
+    <label class="fl">Flags</label>
+    <div style="display:flex;gap:10px">
+     <button id="f-vip-btn" type="button" onclick="toggleFormVip()"
+       style="flex:1;padding:11px;border-radius:var(--rsm);border:1px solid var(--bo);background:var(--s2);color:var(--t2);font-size:14px;font-weight:600;cursor:pointer;font-family:-apple-system,sans-serif;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:6px">
+       <span>☆</span><span>VIP</span>
+     </button>
+     <button id="f-opd-btn" type="button" onclick="toggleFormOpd()"
+       style="flex:1;padding:11px;border-radius:var(--rsm);border:1px solid var(--bo);background:var(--s2);color:var(--t2);font-size:14px;font-weight:600;cursor:pointer;font-family:-apple-system,sans-serif;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:6px">
+       <span style="filter:grayscale(1) opacity(.4)">✅</span><span>OPD set</span>
+     </button>
+    </div>
+   </div>
    <div class="fg"><label class="fl">Notes</label><textarea class="fta" id="fnt" placeholder="Clinical notes, plan..."></textarea></div>
    <button class="sbmt" onclick="saveCase()">Save</button>
   </div>
@@ -995,15 +1009,40 @@ function openDet(id){
   open('ov-det');
 }
 
-/* ===== ADD/EDIT ===== */
+let _formVip=false,_formOpd=false;
+
+function toggleFormVip(){
+  _formVip=!_formVip;
+  const btn=document.getElementById('f-vip-btn');
+  if(_formVip){btn.style.background='rgba(245,166,35,.15)';btn.style.borderColor='var(--am)';btn.style.color='var(--am)';btn.innerHTML='<span>★</span><span>VIP</span>'}
+  else{btn.style.background='var(--s2)';btn.style.borderColor='var(--bo)';btn.style.color='var(--t2)';btn.innerHTML='<span>☆</span><span>VIP</span>'}
+}
+
+function toggleFormOpd(){
+  _formOpd=!_formOpd;
+  const btn=document.getElementById('f-opd-btn');
+  if(_formOpd){btn.style.background='rgba(62,207,142,.15)';btn.style.borderColor='var(--g)';btn.style.color='var(--g)';btn.innerHTML='<span>✅</span><span>OPD set</span>'}
+  else{btn.style.background='var(--s2)';btn.style.borderColor='var(--bo)';btn.style.color='var(--t2)';btn.innerHTML='<span style="filter:grayscale(1) opacity(.4)">✅</span><span>OPD set</span>'}
+}
+
+function setFormFlags(vip,opd){
+  _formVip=false;_formOpd=false;
+  // Reset both first then apply
+  const vb=document.getElementById('f-vip-btn');
+  const ob=document.getElementById('f-opd-btn');
+  if(vb){vb.style.background='var(--s2)';vb.style.borderColor='var(--bo)';vb.style.color='var(--t2)';vb.innerHTML='<span>☆</span><span>VIP</span>'}
+  if(ob){ob.style.background='var(--s2)';ob.style.borderColor='var(--bo)';ob.style.color='var(--t2)';ob.innerHTML='<span style="filter:grayscale(1) opacity(.4)">✅</span><span>OPD set</span>'}
+  if(vip)toggleFormVip();
+  if(opd)toggleFormOpd();
+}
 function openAdd(){
   document.getElementById('eid').value='';
   document.getElementById('ft-title').textContent='New Consult';
   ['fn','fhn','fwd','fdx','fnt'].forEach(i=>document.getElementById(i).value='');
   document.getElementById('fty').value='';document.getElementById('ffu').value='';
-  // Show first visit panel, default to today
   document.getElementById('fvisit').value=today();
   document.getElementById('fvisit-wrap').style.display='';
+  setFormFlags(false,false);
   open('ov-add');
 }
 function openEdit(id){
@@ -1014,9 +1053,9 @@ function openEdit(id){
   document.getElementById('fwd').value=c.wd||'';document.getElementById('fdx').value=c.dx||'';
   document.getElementById('fty').value=c.ty||'';document.getElementById('ffu').value=c.fu||'';
   document.getElementById('fnt').value=c.nt||'';
-  // Show first visit with existing value so it can be corrected
   document.getElementById('fvisit').value=c.firstVisit||c.created?.split('T')[0]||today();
   document.getElementById('fvisit-wrap').style.display='';
+  setFormFlags(c.st||false,c.opd||false);
   cls('ov-det');setTimeout(()=>open('ov-add'),180);
 }
 async function saveCase(){
