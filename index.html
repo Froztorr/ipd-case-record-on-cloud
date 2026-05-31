@@ -400,6 +400,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg
      <button class="qd" onclick="qd(90,'ffu')">+3mo</button>
     </div>
    </div>
+   <!-- First visit date — only shown for new cases, hidden on edit/follow-up -->
+   <div class="fg" id="fvisit-wrap">
+    <label class="fl">First Visit Date <span style="color:var(--g);font-size:10px;font-weight:400;text-transform:none;letter-spacing:0">Used for statistics</span></label>
+    <input class="fi" id="fvisit" type="date">
+    <div style="font-size:11px;color:var(--t3);margin-top:4px">📊 Stats count first visits only — set to today by default</div>
+   </div>
    <div class="fg"><label class="fl">Notes</label><textarea class="fta" id="fnt" placeholder="Clinical notes, plan..."></textarea></div>
    <button class="sbmt" onclick="saveCase()">Save</button>
   </div>
@@ -906,20 +912,25 @@ function rStats(){
   if(!stFrom)stFrom=addD(t,-30);
   if(!stTo)stTo=t;
   let h=`<div class="dr"><label>From</label><input class="fi" type="date" value="${stFrom}" onchange="stFrom=this.value;rStats()"><label>To</label><input class="fi" type="date" value="${stTo}" onchange="stTo=this.value;rStats()"></div>`;
-  const cases=load().filter(c=>{const d=(c.created||'').split('T')[0];return d>=stFrom&&d<=stTo});
+  // Count by firstVisit date — excludes follow-up visits for accurate stats
+  const cases=load().filter(c=>{
+    const d=c.firstVisit||(c.created||'').split('T')[0];
+    return d>=stFrom&&d<=stTo;
+  });
   const cnt={};TYPES.forEach(t=>cnt[t]=0);cases.forEach(c=>{if(cnt[c.ty]!==undefined)cnt[c.ty]++});
   const total=cases.length;
+  h+=`<div style="font-size:11px;color:var(--t3);margin-bottom:8px">📊 Counts first visit date only — follow-up visits excluded</div>`;
   h+=`<table class="stbl"><thead><tr><th>Category</th><th style="text-align:right">n</th><th style="text-align:right">%</th></tr></thead><tbody>`;
   TYPES.forEach(t=>{if(!cnt[t])return;const p=((cnt[t]/total)*100).toFixed(1);h+=`<tr><td><span class="dot" style="background:${TK[t]}"></span>${t}</td><td style="text-align:right;font-weight:600">${cnt[t]}</td><td style="text-align:right;color:var(--t3)">${p}%</td></tr>`});
-  h+=`<tr><td><b>Total</b></td><td style="text-align:right">${total}</td><td style="text-align:right">–</td></tr></tbody></table>`;
-  if(total>0)h+=`<div class="cwrap"><div class="ctitle">Distribution by category</div><canvas id="pieC" height="240"></canvas><div class="leg" id="leg"></div></div>`;
-  else h+=`<div class="empty"><div class="ei">📊</div><div class="et">No cases in range</div></div>`;
+  h+=`<tr><td><b>Total new consults</b></td><td style="text-align:right">${total}</td><td style="text-align:right">–</td></tr></tbody></table>`;
+  if(total>0)h+=`<div class="cwrap"><div class="ctitle" style="text-align:center">Distribution by category</div><div style="display:flex;justify-content:center"><canvas id="pieC" style="max-width:200px;max-height:200px"></canvas></div><div class="leg" id="leg"></div></div>`;
+  else h+=`<div class="empty"><div class="ei">📊</div><div class="et">No new consults in range</div></div>`;
   set('v-stats',h);
   if(total>0)setTimeout(()=>{
     const at=TYPES.filter(t=>cnt[t]>0);
     if(pie){pie.destroy();pie=null}
     const ctx=document.getElementById('pieC');if(!ctx)return;
-    pie=new Chart(ctx,{type:'doughnut',data:{labels:at,datasets:[{data:at.map(t=>cnt[t]),backgroundColor:at.map(t=>TK[t]),borderWidth:2,borderColor:'#1a1d27',hoverOffset:5}]},options:{responsive:true,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>{const p=((c.parsed/total)*100).toFixed(1);return` ${c.label}: ${c.parsed} (${p}%)`}}}},cutout:'56%'}});
+    pie=new Chart(ctx,{type:'doughnut',data:{labels:at,datasets:[{data:at.map(t=>cnt[t]),backgroundColor:at.map(t=>TK[t]),borderWidth:2,borderColor:'#1a1d27',hoverOffset:5}]},options:{responsive:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>{const p=((c.parsed/total)*100).toFixed(1);return` ${c.label}: ${c.parsed} (${p}%)`}}}},cutout:'52%'}});
     const leg=document.getElementById('leg');
     if(leg)leg.innerHTML=at.map(t=>`<div class="li"><div class="ld" style="background:${TK[t]}"></div>${t} (${cnt[t]})</div>`).join('');
   },80);
@@ -969,6 +980,7 @@ function openDet(id){
     <div><div class="dl">Ward</div><div class="dv">${c.wd||'–'}</div></div>
     <div><div class="dl">Category</div><div class="dv"><span class="bh btp ${TC[c.ty]||''}">${c.ty||'–'}</span></div></div>
     <div><div class="dl">Follow-up</div><div class="dv">${fus}</div></div>
+    <div><div class="dl">First Visit 📊</div><div class="dv">${fd(c.firstVisit||c.created?.split('T')[0])}</div></div>
   </div></div>
   ${c.dx?`<div class="dsec"><div class="dl">Diagnosis</div><div class="dv" style="margin-top:3px">${c.dx}</div></div>`:''}
   ${c.nt?`<div class="dsec"><div class="dl">Notes</div><div class="dnotes">${c.nt}</div></div>`:''}
@@ -989,6 +1001,9 @@ function openAdd(){
   document.getElementById('ft-title').textContent='New Consult';
   ['fn','fhn','fwd','fdx','fnt'].forEach(i=>document.getElementById(i).value='');
   document.getElementById('fty').value='';document.getElementById('ffu').value='';
+  // Show first visit panel, default to today
+  document.getElementById('fvisit').value=today();
+  document.getElementById('fvisit-wrap').style.display='';
   open('ov-add');
 }
 function openEdit(id){
@@ -999,6 +1014,9 @@ function openEdit(id){
   document.getElementById('fwd').value=c.wd||'';document.getElementById('fdx').value=c.dx||'';
   document.getElementById('fty').value=c.ty||'';document.getElementById('ffu').value=c.fu||'';
   document.getElementById('fnt').value=c.nt||'';
+  // Show first visit with existing value so it can be corrected
+  document.getElementById('fvisit').value=c.firstVisit||c.created?.split('T')[0]||today();
+  document.getElementById('fvisit-wrap').style.display='';
   cls('ov-det');setTimeout(()=>open('ov-add'),180);
 }
 async function saveCase(){
@@ -1014,9 +1032,12 @@ async function saveCase(){
     dx:document.getElementById('fdx').value.trim(),
     fu:document.getElementById('ffu').value,
     nt:document.getElementById('fnt').value.trim(),
+    // Preserve firstVisit — only set on new case, editable but not overwritten by follow-up
+    firstVisit:document.getElementById('fvisit').value||existing.firstVisit||today(),
     st:existing.st||false,
     dc:existing.dc||false,
     dcDate:existing.dcDate||null,
+    opd:existing.opd||false,
     created:existing.created||new Date().toISOString(),
     upd:new Date().toISOString()
   };
