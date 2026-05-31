@@ -185,8 +185,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg
 .tc-pr{background:rgba(48,209,88,.15);color:#30d158}
 .tc-h{background:rgba(100,210,255,.15);color:#5ac8fa}
 /* GRANNY ANIMATION */
-.granny-wrap{display:flex;justify-content:center;align-items:center;width:100%;height:90px;overflow:hidden}
-.granny{height:90px;width:auto;cursor:pointer;image-rendering:pixelated}
+.granny-wrap{display:flex;justify-content:center;align-items:center;width:100%;height:130px;overflow:hidden}
+.granny{height:120px;width:auto;cursor:pointer;border-radius:4px}
 .granny.turbo{animation:grannySpeed .05s steps(1) infinite}
 @keyframes grannySpeed{0%{transform:scaleX(1)}50%{transform:scaleX(.97)}}
 /* OPD CHECK BUTTON */
@@ -203,7 +203,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg
 <!-- LOGIN -->
 <div id="login-screen">
   <div class="login-logo" id="login-granny">
-    <div class="granny-wrap"><img class="granny" src="Granny.gif" onclick="grannyTurbo()" alt="granny"></div>
+    <div class="granny-wrap"><video class="granny" src="Video.mp4" autoplay loop muted playsinline onclick="grannyTurbo()" id="granny-vid"></video></div>
   </div>
   <div class="login-title">Consult <b>E-Record</b></div>
 
@@ -807,7 +807,7 @@ function rToday(){
   if(ov.length)h+=`<div class="sh">⚠️ Overdue (${ov.length})</div><div class="cards">${ov.map(card).join('')}</div>`;
   if(td.length)h+=`<div class="sh" style="margin-top:8px">📅 Today — ${fd(t)} (${td.length})</div><div class="cards">${td.map(card).join('')}</div>`;
   if(nd.length)h+=`<div class="sh" style="margin-top:8px">No F/U date (${nd.length})</div><div class="cards">${nd.map(card).join('')}</div>`;
-  if(!ov.length&&!td.length&&!nd.length)h+=`<div class="empty"><div class="granny-wrap" style="margin-bottom:8px"><img class="granny" src="Granny.gif" onclick="grannyTurbo()" alt="granny"></div><div class="et">${act.length?'All clear for today':'No active cases'}</div><div class="es">${act.length?act.length+' case(s) with future F/U':'Tap + to add a consult'}</div></div>`;
+  if(!ov.length&&!td.length&&!nd.length)h+=`<div class="empty"><div class="granny-wrap" style="margin-bottom:8px"><video class="granny" src="Video.mp4" autoplay loop muted playsinline onclick="grannyTurbo()" id="granny-vid"></video></div><div class="et">${act.length?'All clear for today':'No active cases'}</div><div class="es">${act.length?act.length+' case(s) with future F/U':'Tap + to add a consult'}</div></div>`;
   set('v-today',h);
 }
 
@@ -1031,9 +1031,15 @@ async function toggleOpd(id){
 }
 let _grannyTimer=null;
 function grannyTurbo(){
-  document.querySelectorAll('.granny').forEach(g=>g.classList.add('turbo'));
+  document.querySelectorAll('.granny').forEach(g=>{
+    if(g.tagName==='VIDEO'){g.playbackRate=3}
+    else g.classList.add('turbo');
+  });
   clearTimeout(_grannyTimer);
-  _grannyTimer=setTimeout(()=>document.querySelectorAll('.granny').forEach(g=>g.classList.remove('turbo')),3000);
+  _grannyTimer=setTimeout(()=>document.querySelectorAll('.granny').forEach(g=>{
+    if(g.tagName==='VIDEO'){g.playbackRate=1}
+    else g.classList.remove('turbo');
+  }),3000);
 }
 function confirmClearAll(){
   showConf('⚠️','Delete ALL data?','Every patient record will be permanently erased from your account. This cannot be undone.',
