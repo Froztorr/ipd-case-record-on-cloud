@@ -338,7 +338,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg
 <div id="app" style="display:none">
   <div id="hdr">
     <div class="htop">
-      <div class="htitle">Consult <b>E-Record</b></div>
+      <div class="htitle" id="admin-trigger" onclick="adminTap()">Consult <b>E-Record</b></div>
       <div style="display:flex;align-items:center;gap:8px">
         <button class="hbin" onclick="confirmClearAll()" aria-label="Clear all data">🗑</button>
         <button class="hbin" onclick="doSignOut()" title="Sign out" style="font-size:18px;background:var(--s2);color:var(--t2)" id="user-lbl">🚪</button>
@@ -453,6 +453,35 @@ body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg
 <div class="toast" id="toast"></div>
 <div class="disclaimer">Unofficial — please use with caution</div>
 
+<!-- ADMIN BACKDOOR -->
+<div class="ov-wrap" id="ov-admin" onclick="bkd(event,'ov-admin')">
+ <div class="sheet" style="max-height:95vh">
+  <div class="shdl"></div>
+  <div class="shhdr">
+   <div class="shtitle">🔧 Admin Panel</div>
+   <button class="xcls" onclick="cls('ov-admin')">✕</button>
+  </div>
+  <div id="admin-body" style="padding:14px 16px;display:flex;flex-direction:column;gap:12px">
+   <div style="font-size:12px;color:var(--t3);text-align:center">Loading...</div>
+  </div>
+ </div>
+</div>
+
+<!-- ADMIN LOGIN -->
+<div class="ov-wrap" id="ov-adminlogin" onclick="bkd(event,'ov-adminlogin')">
+ <div class="sheet">
+  <div class="shdl"></div>
+  <div class="shhdr"><div class="shtitle">🔧 Admin Access</div><button class="xcls" onclick="cls('ov-adminlogin')">✕</button></div>
+  <div class="form">
+   <div class="fg"><label class="fl">Admin Password</label>
+    <input class="fi" id="admin-pw" type="password" placeholder="Enter admin password" onkeydown="if(event.key==='Enter')adminLogin()">
+   </div>
+   <button class="sbmt" style="background:#333" onclick="adminLogin()">Enter</button>
+   <div id="admin-err" style="color:var(--r);font-size:13px;text-align:center;min-height:16px"></div>
+  </div>
+ </div>
+</div>
+
 <!-- FIREBASE via CDN -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
@@ -466,6 +495,7 @@ firebase.initializeApp({
   appId:"1:419932775509:web:35594c443aee67da5f20dc"
 });
 const db=firebase.firestore();
+window.db=db;
 let _uid=null,_unsub=null,_fpUser=null,_fpData=null;
 window._cases=[];
 // Expose for visibility handler
@@ -522,6 +552,7 @@ window.authMode=function(m){
 
 /* ── Subscribe data ── */
 function subscribeData(userId){
+  window.subscribeData=subscribeData;
   if(_unsub)_unsub();
   setSyncBusy(true);
   _unsub=db.collection('users').doc(userId).collection('cases').orderBy('created','desc')
@@ -1082,6 +1113,155 @@ function toast(m){const e=document.getElementById('toast');e.textContent=m;e.cla
 window.toast=toast;
 
 window._cases=[];
+
+// ── ADMIN PANEL ──
+let _adminTaps=0,_adminTapTimer=null;
+
+function adminTap(){
+  _adminTaps++;
+  clearTimeout(_adminTapTimer);
+  _adminTapTimer=setTimeout(()=>_adminTaps=0,1500);
+  if(_adminTaps>=5){
+    _adminTaps=0;
+    document.getElementById('admin-pw').value='';
+    document.getElementById('admin-err').textContent='';
+    open('ov-adminlogin');
+  }
+}
+
+async function adminLogin(){
+  const pw=document.getElementById('admin-pw').value;
+  if(!pw){document.getElementById('admin-err').textContent='Enter password';return}
+  const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode('admin::rehab::'+pw));
+  const hash=Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('').slice(0,12);
+  const stored=localStorage.getItem('rehab_admin_hash');
+  if(!stored){
+    localStorage.setItem('rehab_admin_hash',hash);
+    cls('ov-adminlogin');openAdmin();return;
+  }
+  if(hash!==stored){document.getElementById('admin-err').textContent='Incorrect password';return}
+  cls('ov-adminlogin');openAdmin();
+}
+
+async function openAdmin(){
+  open('ov-admin');
+  const body=document.getElementById('admin-body');
+  body.innerHTML=`<div style="font-size:12px;color:var(--t3);text-align:center">Loading data...</div>`;
+  try{
+    const accSnap=await db.collection('accounts').get();
+    const accounts=accSnap.docs.map(d=>({username:d.id,...d.data()}));
+    const now=new Date();
+    const sixMonthsAgo=new Date(now);sixMonthsAgo.setMonth(sixMonthsAgo.getMonth()-6);
+    let totalCases=0;
+    const stats=await Promise.all(accounts.map(async acc=>{
+      const cs=await db.collection('users').doc(acc.uid).collection('cases').get();
+      totalCases+=cs.size;
+      let last=acc.created?new Date(acc.created):new Date(0);
+      cs.docs.forEach(c=>{const u=c.data().upd||c.data().created;if(u&&new Date(u)>last)last=new Date(u)});
+      return{...acc,caseCount:cs.size,lastActive:last,inactive:last<sixMonthsAgo};
+    }));
+    stats.sort((a,b)=>a.lastActive-b.lastActive);
+    const inactive=stats.filter(a=>a.inactive);
+    const active=stats.filter(a=>!a.inactive);
+    const usedDocs=totalCases+accounts.length;
+    const usedPct=((usedDocs/1000000)*100).toFixed(3);
+    const estMB=(usedDocs*0.0005).toFixed(3);
+
+    let h=`<div style="background:var(--s2);border-radius:10px;padding:12px 14px">
+      <div style="font-size:11px;color:var(--t3);font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px">☁️ Firestore Usage</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+        <div style="text-align:center"><div style="font-size:22px;font-weight:700;color:var(--a)">${accounts.length}</div><div style="font-size:10px;color:var(--t3)">Accounts</div></div>
+        <div style="text-align:center"><div style="font-size:22px;font-weight:700;color:var(--g)">${totalCases}</div><div style="font-size:10px;color:var(--t3)">Total Cases</div></div>
+        <div style="text-align:center"><div style="font-size:22px;font-weight:700;color:var(--am)">${usedDocs.toLocaleString()}</div><div style="font-size:10px;color:var(--t3)">Documents</div></div>
+        <div style="text-align:center"><div style="font-size:22px;font-weight:700;color:var(--t2)">${estMB} MB</div><div style="font-size:10px;color:var(--t3)">Est. Storage</div></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--t3);margin-bottom:4px"><span>Doc usage</span><span>${usedPct}% of 1M free</span></div>
+      <div style="background:var(--bg);border-radius:4px;height:6px;overflow:hidden">
+        <div style="background:${parseFloat(usedPct)>80?'var(--r)':parseFloat(usedPct)>50?'var(--am)':'var(--g)'};height:100%;width:${Math.min(parseFloat(usedPct)*100,100)}%;border-radius:4px"></div>
+      </div>
+      <div style="font-size:10px;color:var(--t3);margin-top:6px">Limits: 1M docs · 1GB storage · 50K reads/day · 20K writes/day</div>
+    </div>`;
+
+    if(inactive.length){
+      h+=`<div style="background:rgba(255,107,107,.08);border:1px solid rgba(255,107,107,.2);border-radius:10px;padding:12px 14px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <div style="font-size:12px;font-weight:700;color:var(--r)">⚠️ Inactive 6+ months (${inactive.length})</div>
+          <button onclick="adminDeleteInactive()" style="padding:5px 11px;background:var(--r);border:none;border-radius:7px;color:#fff;font-size:11px;font-weight:700;cursor:pointer;font-family:-apple-system,sans-serif">Delete All</button>
+        </div>`;
+      inactive.forEach(a=>{
+        const mo=Math.floor((now-a.lastActive)/(1000*60*60*24*30));
+        h+=`<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--bo)">
+          <div><div style="font-size:13px;font-weight:600">${a.username}</div><div style="font-size:11px;color:var(--t3)">${a.caseCount} cases · ${mo}mo inactive</div></div>
+          <button onclick="adminDeleteOne('${a.username}','${a.uid}')" style="padding:4px 9px;background:rgba(255,107,107,.15);border:none;border-radius:6px;color:var(--r);font-size:11px;font-weight:600;cursor:pointer;font-family:-apple-system,sans-serif">Delete</button>
+        </div>`;
+      });
+      h+=`</div>`;
+    } else {
+      h+=`<div style="background:rgba(62,207,142,.08);border:1px solid rgba(62,207,142,.2);border-radius:10px;padding:10px 14px;font-size:13px;color:var(--g)">✅ No inactive accounts</div>`;
+    }
+
+    h+=`<div style="background:var(--s2);border-radius:10px;padding:12px 14px">
+      <div style="font-size:11px;color:var(--t3);font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">👥 Active Accounts (${active.length})</div>`;
+    active.forEach(a=>{
+      const d=Math.floor((now-a.lastActive)/86400000);
+      const ls=d===0?'Today':d===1?'Yesterday':`${d}d ago`;
+      h+=`<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--bo)">
+        <div><div style="font-size:13px;font-weight:600">${a.username}</div><div style="font-size:11px;color:var(--t3)">${a.caseCount} cases · ${ls}</div></div>
+        <button onclick="adminDeleteOne('${a.username}','${a.uid}')" style="padding:4px 9px;background:var(--s);border:1px solid var(--bo);border-radius:6px;color:var(--t3);font-size:11px;cursor:pointer;font-family:-apple-system,sans-serif">Delete</button>
+      </div>`;
+    });
+    h+=`</div>`;
+
+    h+=`<div style="background:var(--s2);border-radius:10px;padding:12px 14px">
+      <div style="font-size:11px;color:var(--t3);font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">🔑 Change Admin Password</div>
+      <input class="fi" id="admin-newpw" type="password" placeholder="New admin password" style="margin-bottom:8px">
+      <button onclick="adminChangePw()" style="width:100%;padding:10px;background:var(--s);border:1px solid var(--bo2);border-radius:8px;color:var(--t2);font-size:13px;font-weight:600;cursor:pointer;font-family:-apple-system,sans-serif">Update Password</button>
+    </div>`;
+
+    body.innerHTML=h;
+  }catch(e){body.innerHTML=`<div style="color:var(--r);font-size:13px">Error: ${e.message}</div>`;console.error(e)}
+}
+
+async function adminDeleteOne(username,uid){
+  showConf('🗑',`Delete "${username}"?`,`Permanently removes their account and all patient records.`,
+    'Delete',async()=>{
+      try{
+        const s=await db.collection('users').doc(uid).collection('cases').get();
+        await Promise.all(s.docs.map(d=>d.ref.delete()));
+        await db.collection('accounts').doc(username).delete();
+        toast('🗑 Deleted '+username);openAdmin();
+      }catch(e){toast('⚠ Failed');console.error(e)}
+    });
+}
+
+async function adminDeleteInactive(){
+  showConf('⚠️','Delete ALL inactive?','Permanently removes all accounts inactive 6+ months and their data.',
+    'Delete All',async()=>{
+      try{
+        const now=new Date(),sma=new Date(now);sma.setMonth(sma.getMonth()-6);
+        const snap=await db.collection('accounts').get();
+        let n=0;
+        for(const doc of snap.docs){
+          const acc=doc.data();
+          const cs=await db.collection('users').doc(acc.uid).collection('cases').get();
+          let last=acc.created?new Date(acc.created):new Date(0);
+          cs.docs.forEach(c=>{const u=c.data().upd||c.data().created;if(u&&new Date(u)>last)last=new Date(u)});
+          if(last<sma){await Promise.all(cs.docs.map(d=>d.ref.delete()));await doc.ref.delete();n++}
+        }
+        toast(`🗑 Deleted ${n} inactive account(s)`);openAdmin();
+      }catch(e){toast('⚠ Failed');console.error(e)}
+    });
+}
+
+async function adminChangePw(){
+  const pw=document.getElementById('admin-newpw')?.value;
+  if(!pw||pw.length<4){toast('⚠ Password too short');return}
+  const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode('admin::rehab::'+pw));
+  const hash=Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('').slice(0,12);
+  localStorage.setItem('rehab_admin_hash',hash);
+  toast('✅ Admin password updated');
+  document.getElementById('admin-newpw').value='';
+}
 
 /* ── Battery optimizations ── */
 
