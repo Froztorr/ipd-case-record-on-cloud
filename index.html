@@ -981,8 +981,20 @@ function card(c){
 }
 
 function chips(types,cur,fn){
-  return`<div class="fw">${['All',...types].map(t=>`<button class="chip${cur===t?' on':''}" onclick="${fn}('${t}')">${t}</button>`).join('')}</div>`;
+  return`<div class="fw" data-chipfn="${fn}">${['All',...types].map(t=>`<button class="chip${cur===t?' on':''}" data-val="${t.replace(/"/g,'&quot;')}">${t}</button>`).join('')}</div>`;
 }
+
+// Global chip click handler — avoids inline onclick with spaces in values
+document.addEventListener('click',e=>{
+  const btn=e.target.closest('[data-val]');
+  if(!btn)return;
+  const wrap=btn.closest('[data-chipfn]');
+  if(!wrap)return;
+  const fn=wrap.getAttribute('data-chipfn');
+  const val=btn.getAttribute('data-val');
+  if(fn==='setDoneFilter')setDoneFilter(val);
+  else if(fn==='setDcFilter')setDcFilter(val);
+});
 
 function syncBar(){
   const online=navigator.onLine;
@@ -1351,8 +1363,29 @@ function expCSV(){
 /* ===== UTILS ===== */
 function set(id,h){const e=document.getElementById(id);if(e)e.innerHTML=h}
 function open(id){document.getElementById(id).classList.add('on')}
-function cls(id){document.getElementById(id).classList.remove('on')}
+function cls(id){
+  const el=document.getElementById(id);if(!el)return;
+  // Blur focused input so keyboard dismisses cleanly
+  const focused=el.querySelector('input:focus,textarea:focus,select:focus');
+  if(focused)focused.blur();
+  el.classList.remove('on');
+  // After keyboard closes iOS shifts viewport — reset scroll to fix touch offset
+  setTimeout(()=>{window.scrollTo(0,0);document.body.scrollTop=0},350);
+}
 function bkd(e,id){if(e.target===document.getElementById(id))cls(id)}
+
+// Fix iOS visualViewport shift when keyboard opens/closes
+if(window.visualViewport){
+  let _lastVH=window.visualViewport.height;
+  window.visualViewport.addEventListener('resize',()=>{
+    const newVH=window.visualViewport.height;
+    // Keyboard just closed (viewport got taller)
+    if(newVH>_lastVH&&document.activeElement.tagName!=='INPUT'&&document.activeElement.tagName!=='TEXTAREA'){
+      setTimeout(()=>{window.scrollTo(0,0);document.body.scrollTop=0},100);
+    }
+    _lastVH=newVH;
+  });
+}
 let toastTimer=null;
 function toast(m){const e=document.getElementById('toast');e.textContent=m;e.classList.add('on');clearTimeout(toastTimer);toastTimer=setTimeout(()=>e.classList.remove('on'),2200)}
 window.toast=toast;
