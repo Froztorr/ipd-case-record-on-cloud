@@ -938,12 +938,13 @@ const TK={Stroke:'#ff7eb3','Chronic med':'#6c6fff','Post op':'#3ecf8e',Swallow:'
 
 // Data — always read from in-memory cache populated by Firestore listener
 function load(){return window._cases||[]}
+function esc(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}
 function uid_(){return Math.random().toString(36).slice(2,9)+Date.now().toString(36)}
 
 const today=()=>new Date().toISOString().split('T')[0];
 const fd=s=>{if(!s)return'–';const[y,m,d]=s.split('-');return`${d}/${m}/${y.slice(2)}`};
 const addD=(s,n)=>{const d=new Date(s+'T00:00:00');d.setDate(d.getDate()+n);return d.toISOString().split('T')[0]};
-const weekEnd=()=>{const d=new Date(),n=5-d.getDay();const f=new Date(d);f.setDate(d.getDate()+(n>=0?n:n+7));return f.toISOString().split('T')[0]};
+const weekEnd=()=>{const d=new Date(),day=d.getDay();const n=day<=5?5-day:5+(7-day);const f=new Date(d);f.setDate(d.getDate()+(n===0&&day!==5?7:n));return f.toISOString().split('T')[0]};
 const monthKey=s=>{if(!s)return'Unknown';const[y,m]=s.split('-');const mn=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];return`${mn[parseInt(m,10)-1]} ${y}`};
 const dayLbl=s=>{
   const t=today(),diff=Math.round((new Date(s+'T00:00:00')-new Date(t+'T00:00:00'))/86400000);
@@ -961,7 +962,7 @@ function card(c){
   return`<div class="card" onclick="openDet('${c.id}')">
     <div class="ca" style="background:${TK[c.ty]||'#6c6fff'}"></div>
     <div class="cr1">
-      <div class="cn">${c.nm||'–'}</div>
+      <div class="cn">${esc(c.nm)||'–'}</div>
       <button class="opd-btn${c.opd?' on':''}" onclick="event.stopPropagation();toggleOpd('${c.id}')" title="OPD appt set">✅</button>
       <button class="sbtn${c.st?' on':''}" onclick="event.stopPropagation();star('${c.id}')" aria-label="VIP">★</button>
     </div>
@@ -970,8 +971,8 @@ function card(c){
       ${c.wd?`<span class="bh bwd">${c.wd}</span>`:''}
       ${c.ty?`<span class="bh btp ${TC[c.ty]||''}">${c.ty}</span>`:''}
     </div>
-    ${c.dx?`<div class="cdx">${c.dx}</div>`:''}
-    ${c.nt?`<div class="cnotes">${c.nt}</div>`:''}
+    ${c.dx?`<div class="cdx">${esc(c.dx)}</div>`:''}
+    ${c.nt?`<div class="cnotes">${esc(c.nt)}</div>`:''}
     <div class="cfoot">${flab}<div class="cbtns">
       ${!c.dc?`<button class="mb mfu" onclick="event.stopPropagation();openFU('${c.id}')">Set F/U</button>`:''}
       ${c.dc?`<button class="mb mun" onclick="event.stopPropagation();undc('${c.id}')">↩ Reactivate</button>`:
@@ -1030,7 +1031,7 @@ function rImp(){
 }
 
 /* ===== ALL CASES ===== */
-function setDoneFilter(f){doneFilter=f;rDoneCards()}
+function setDoneFilter(f){doneFilter=f;rDoneChips();rDoneCards()}
 function rDone(){
   // Render controls once — search input stays in DOM, never recreated
   set('v-done',`
@@ -1063,7 +1064,7 @@ function rDoneCards(){
 }
 
 /* ===== DISCHARGED ===== */
-function setDcFilter(f){dcFilter=f;rDcCards()}
+function setDcFilter(f){dcFilter=f;rDcChips();rDcCards()}
 function dcApplyDate(){
   dcFrom=document.getElementById('dc-from')?.value||'';
   dcTo=document.getElementById('dc-to')?.value||'';
@@ -1159,14 +1160,25 @@ function go(t){
     document.getElementById('t-'+x).classList.toggle('on',x===t);
     document.getElementById('v-'+x).classList.toggle('on',x===t);
   });
-  render();
+  // Always full render on tab switch — scaffold needs to be rebuilt
+  fullRender();
+}
+
+function fullRender(){
+  if(tab==='today')rToday();
+  else if(tab==='imp')rImp();
+  else if(tab==='done')rDone();
+  else if(tab==='dc')rDc();
+  else if(tab==='vip')rVip();
+  else rStats();
+  badges();
 }
 
 function render(){
+  // Smart render — only update cards if already on done/dc (avoids destroying search input)
   if(tab==='today')rToday();
   else if(tab==='imp')rImp();
   else if(tab==='done'){
-    // Only re-render cards if scaffold already exists, else full render
     if(document.getElementById('done-cards'))rDoneCards();
     else rDone();
   }
@@ -1199,7 +1211,7 @@ function openDet(id){
   <div class="dacts">
     ${!c.dc?`<button class="ab ap" onclick="cls('ov-det');setTimeout(()=>openFU('${c.id}'),180)">📅 Set Follow-up Date</button>`:''}
     <button class="ab aw" onclick="openEdit('${c.id}')">✏️ Edit Case</button>
-    <button class="ab agr" onclick="star('${c.id}');openDet('${c.id}')">${c.st?'☆ Remove VIP':'⭐ Mark as VIP'}</button>
+    <button class="ab agr" onclick="starFromDet('${c.id}')">${c.st?'☆ Remove VIP':'⭐ Mark as VIP'}</button>
     ${c.dc?`<button class="ab ag" onclick="undc('${c.id}');cls('ov-det')">↩ Reactivate</button>`:`<button class="ab" style="background:rgba(255,107,107,.15);color:var(--r)" onclick="dc('${c.id}');cls('ov-det')">🏠 Discharge</button>`}
     <button class="ab ard" onclick="del('${c.id}')">🗑 Delete Case</button>
   </div>`;
@@ -1296,6 +1308,13 @@ function qd(n,id){const el=document.getElementById(id);const base=el.value?new D
 function qdToday(id){document.getElementById(id).value=new Date().toISOString().split('T')[0]}
 
 /* ===== ACTIONS ===== */
+async function starFromDet(id){
+  await star(id);
+  // Update just the star button text in open detail without full re-render
+  const c=load().find(x=>x.id===id);
+  const btn=document.querySelector('#det-body .ab.agr');
+  if(btn&&c)btn.textContent=c.st?'☆ Remove VIP':'⭐ Mark as VIP';
+}
 async function star(id){
   const c=load().find(x=>x.id===id);if(!c)return;
   await window._saveToCloud({...c,st:!c.st,upd:new Date().toISOString()});
