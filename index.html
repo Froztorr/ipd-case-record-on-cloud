@@ -981,9 +981,12 @@ const sortW = (arr) => arr.sort((a,b) => {
   const p = s => {
     if(!s) return {t:3, v:0, o:''};
     const w = String(s).split('/')[0].trim().toLowerCase();
-    if(w==='ccu'||w==='iccu') return {t:0, v:4, o:w};
-    if(w==='micu') return {t:0, v:10, o:w};
+    
+    // Use startsWith to catch Micu1, Micu2, CCU, ICCU etc.
+    if(w.startsWith('ccu')||w.startsWith('iccu')) return {t:0, v:4, o:w};
+    if(w.startsWith('micu')) return {t:0, v:10, o:w};
     if(w.startsWith('สก')) return {t:1, v:parseInt(w.replace('สก',''))||0, o:w};
+    
     const n = parseInt(w);
     return !isNaN(n) ? {t:0, v:n, o:w} : {t:2, v:0, o:w};
   };
