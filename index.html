@@ -9,13 +9,22 @@
 <title>Consult E-Record</title>
 <style>
 :root{
-  --bg:#0f1117;--s:#1a1d27;--s2:#232637;--bo:rgba(255,255,255,.08);--bo2:rgba(255,255,255,.14);
-  --t:#f0f2ff;--t2:#8b8fa8;--t3:#555870;
-  --a:#6c6fff;--a2:#4e51cc;--g:#3ecf8e;--am:#f5a623;--r:#ff6b6b;
+  --bg:#ffffff;--s:#f8f9fa;--s2:#f0f2f5;--bo:rgba(0,0,0,.08);--bo2:rgba(0,0,0,.14);
+  --t:#1a1d27;--t2:#555870;--t3:#8b8fa8;
+  --a:#EB976F;--a2:#d6835c;--g:#3ecf8e;--am:#f5a623;--r:#dc3545;
   --rsm:8px;--saf-t:env(safe-area-inset-top,20px);--saf-b:env(safe-area-inset-bottom,0px);
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;-webkit-font-smoothing:antialiased}
-body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg);color:var(--t);overflow-x:hidden;padding-top:var(--saf-t)}
+body, input, button, textarea, select {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", sans-serif !important;
+}
+
+body {
+  background:var(--bg);
+  color:var(--t);
+  overflow-x:hidden;
+  padding-top:var(--saf-t);
+}
 /* LOGIN */
 #login-screen{position:fixed;inset:0;z-index:500;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:calc(var(--saf-t) + 24px) 28px 40px;gap:18px;overflow-y:auto}
 #login-screen.h{display:none}
@@ -941,10 +950,11 @@ function load(){return window._cases||[]}
 function esc(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}
 function uid_(){return Math.random().toString(36).slice(2,9)+Date.now().toString(36)}
 
-const today=()=>new Date().toISOString().split('T')[0];
+const localDateStr = (d = new Date()) => { const pad = x => x < 10 ? '0' + x : x; return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); };
+const today=()=>localDateStr(new Date());
 const fd=s=>{if(!s)return'–';const[y,m,d]=s.split('-');return`${d}/${m}/${y.slice(2)}`};
-const addD=(s,n)=>{const d=new Date(s+'T00:00:00');d.setDate(d.getDate()+n);return d.toISOString().split('T')[0]};
-const weekEnd=()=>{const d=new Date(),day=d.getDay();const n=day<=5?5-day:5+(7-day);const f=new Date(d);f.setDate(d.getDate()+(n===0&&day!==5?7:n));return f.toISOString().split('T')[0]};
+const addD=(s,n)=>{const d=new Date(s+'T00:00:00');d.setDate(d.getDate()+n);return localDateStr(d)};
+const weekEnd=()=>{const d=new Date(),day=d.getDay();const n=day<=5?5-day:5+(7-day);const f=new Date(d);f.setDate(d.getDate()+(n===0&&day!==5?7:n));return localDateStr(f)};
 const monthKey=s=>{if(!s)return'Unknown';const[y,m]=s.split('-');const mn=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];return`${mn[parseInt(m,10)-1]} ${y}`};
 const dayLbl=s=>{
   const t=today(),diff=Math.round((new Date(s+'T00:00:00')-new Date(t+'T00:00:00'))/86400000);
@@ -1304,8 +1314,8 @@ async function saveFU(){
   await window._saveToCloud(updated);
   toast('📅 Follow-up updated');
 }
-function qd(n,id){const el=document.getElementById(id);const base=el.value?new Date(el.value+'T00:00:00'):new Date();base.setDate(base.getDate()+n);el.value=base.toISOString().split('T')[0]}
-function qdToday(id){document.getElementById(id).value=new Date().toISOString().split('T')[0]}
+function qd(n,id){const el=document.getElementById(id);const base=el.value?new Date(el.value+'T00:00:00'):new Date();base.setDate(base.getDate()+n);el.value=localDateStr(base)}
+function qdToday(id){document.getElementById(id).value=localDateStr(new Date())}
 
 /* ===== ACTIONS ===== */
 async function starFromDet(id){
