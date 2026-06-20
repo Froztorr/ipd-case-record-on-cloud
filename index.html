@@ -8,13 +8,23 @@
 <meta name="apple-mobile-web-app-title" content="E-Record">
 <title>Consult E-Record</title>
 <style>
-:root{
+/* Default Dark Theme */
+:root {
+  --bg:#0f1117;--s:#1a1d27;--s2:#232637;--bo:rgba(255,255,255,.08);--bo2:rgba(255,255,255,.14);
+  --t:#f0f2ff;--t2:#8b8fa8;--t3:#555870;
+  --a:#6c6fff;--a2:#4e51cc;--g:#3ecf8e;--am:#f5a623;--r:#ff6b6b;
+  --rsm:8px;--saf-t:env(safe-area-inset-top,20px);--saf-b:env(safe-area-inset-bottom,0px);
+}
+
+/* Light Theme Toggle */
+[data-theme="light"] {
   --bg:#ffffff;--s:#f8f9fa;--s2:#f0f2f5;--bo:rgba(0,0,0,.08);--bo2:rgba(0,0,0,.14);
   --t:#1a1d27;--t2:#555870;--t3:#8b8fa8;
   --a:#EB976F;--a2:#d6835c;--g:#3ecf8e;--am:#f5a623;--r:#dc3545;
-  --rsm:8px;--saf-t:env(safe-area-inset-top,20px);--saf-b:env(safe-area-inset-bottom,0px);
 }
+
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;-webkit-font-smoothing:antialiased}
+
 body, input, button, textarea, select {
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", sans-serif !important;
 }
@@ -25,6 +35,7 @@ body {
   overflow-x:hidden;
   padding-top:var(--saf-t);
 }
+
 /* LOGIN */
 #login-screen{position:fixed;inset:0;z-index:500;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:calc(var(--saf-t) + 24px) 28px 40px;gap:18px;overflow-y:auto}
 #login-screen.h{display:none}
@@ -46,6 +57,8 @@ body {
 .huser{width:28px;height:28px;border-radius:50%;background:var(--a);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;cursor:pointer;flex-shrink:0;overflow:hidden}
 .huser img{width:100%;height:100%;object-fit:cover}
 .hbin{width:30px;height:30px;border-radius:50%;background:#2a1515;border:none;color:var(--r);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.theme-toggle-btn { background:var(--s2); color:var(--t); border:none; transition: opacity 0.2s; }
+.theme-toggle-btn:active { opacity: 0.7; }
 /* TABS */
 .tabs{display:flex;overflow-x:auto;scrollbar-width:none;padding:4px 16px 0;gap:2px}
 .tabs::-webkit-scrollbar{display:none}
@@ -104,15 +117,15 @@ body {
 .form{padding:14px 16px;display:flex;flex-direction:column;gap:12px}
 .fg{display:flex;flex-direction:column;gap:5px}
 .fl{font-size:11px;color:var(--t2);font-weight:600;letter-spacing:.4px;text-transform:uppercase}
-.fi,.fsl,.fta{background:var(--s2);border:1px solid var(--bo);border-radius:var(--rsm);color:var(--t);font-size:15px;font-family:-apple-system,sans-serif;outline:none;padding:10px 13px;width:100%;transition:border-color .18s}
+.fi,.fsl,.fta{background:var(--s2);border:1px solid var(--bo);border-radius:var(--rsm);color:var(--t);font-size:15px;outline:none;padding:10px 13px;width:100%;transition:border-color .18s}
 .fi:focus,.fsl:focus,.fta:focus{border-color:var(--a)}
 .fta{resize:none;min-height:72px;line-height:1.45}
 .fsl option{background:var(--s2)}
 .frow{display:grid;grid-template-columns:1fr 1fr;gap:9px}
 .qd-wrap{display:flex;gap:5px;flex-wrap:wrap;margin-top:5px}
-.qd{padding:4px 9px;border-radius:6px;background:var(--s2);border:1px solid var(--bo);color:var(--t2);font-size:11px;cursor:pointer;font-family:-apple-system,sans-serif;transition:all .12s}
+.qd{padding:4px 9px;border-radius:6px;background:var(--s2);border:1px solid var(--bo);color:var(--t2);font-size:11px;cursor:pointer;transition:all .12s}
 .qd:active{background:var(--a);color:#fff;border-color:var(--a)}
-.sbmt{width:100%;padding:14px;background:var(--a);border:none;border-radius:var(--rsm);color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:-apple-system,sans-serif;margin-top:2px;transition:background .15s}
+.sbmt{width:100%;padding:14px;background:var(--a);border:none;border-radius:var(--rsm);color:#fff;font-size:15px;font-weight:700;cursor:pointer;margin-top:2px;transition:background .15s}
 .sbmt:active{background:var(--a2)}
 /* DETAIL */
 .dsec{padding:12px 16px;border-bottom:1px solid var(--bo)}
@@ -121,7 +134,7 @@ body {
 .dgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .dnotes{font-size:13px;color:var(--t2);line-height:1.55;white-space:pre-wrap;margin-top:3px;background:var(--s2);border-radius:7px;padding:9px 11px;border-left:2px solid var(--bo2)}
 .dacts{padding:14px 16px;display:flex;flex-direction:column;gap:8px}
-.ab{width:100%;padding:12px;border-radius:var(--rsm);border:none;font-size:14px;font-weight:600;cursor:pointer;font-family:-apple-system,sans-serif;transition:opacity .15s}
+.ab{width:100%;padding:12px;border-radius:var(--rsm);border:none;font-size:14px;font-weight:600;cursor:pointer;transition:opacity .15s}
 .ab:active{opacity:.72}
 .ap{background:rgba(108,111,255,.2);color:#9b9eff}
 .ag{background:rgba(62,207,142,.15);color:var(--g)}
@@ -130,7 +143,7 @@ body {
 .ard{background:rgba(255,69,58,.12);color:#ff453a}
 /* SEARCH */
 .sw{position:relative;margin-bottom:10px}
-.si{width:100%;padding:9px 14px 9px 36px;background:var(--s2);border:1px solid var(--bo);border-radius:11px;color:var(--t);font-size:13px;font-family:-apple-system,sans-serif;outline:none}
+.si{width:100%;padding:9px 14px 9px 36px;background:var(--s2);border:1px solid var(--bo);border-radius:11px;color:var(--t);font-size:13px;outline:none}
 .si:focus{border-color:var(--a)}.si::placeholder{color:var(--t3)}
 .sico{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--t3);font-size:14px;pointer-events:none}
 .fw{display:flex;gap:5px;overflow-x:auto;padding-bottom:8px;margin-bottom:6px;scrollbar-width:none}
@@ -159,7 +172,7 @@ body {
 .fab{width:52px;height:52px;border-radius:50%;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:28px;background:var(--a);color:#fff;box-shadow:0 3px 14px rgba(108,111,255,.45);transition:transform .12s}
 .fab:active{transform:scale(.9)}
 /* EXPORT */
-.expbtn{display:flex;align-items:center;gap:5px;padding:7px 12px;background:var(--s2);border:1px solid var(--bo);border-radius:9px;color:var(--t2);font-size:12px;cursor:pointer;font-family:-apple-system,sans-serif;margin-bottom:10px}
+.expbtn{display:flex;align-items:center;gap:5px;padding:7px 12px;background:var(--s2);border:1px solid var(--bo);border-radius:9px;color:var(--t2);font-size:12px;cursor:pointer;margin-bottom:10px}
 .expbtn:active{opacity:.7}
 /* SYNC INDICATOR */
 .sync{font-size:11px;color:var(--t3);padding:2px 0 6px;display:flex;align-items:center;gap:5px}
@@ -178,7 +191,7 @@ body {
 .conf-title{font-size:16px;font-weight:700;margin-bottom:6px}
 .conf-msg{font-size:13px;color:var(--t2);line-height:1.5;margin-bottom:20px}
 .conf-btns{display:flex;gap:10px}
-.conf-btns button{flex:1;padding:12px;border-radius:10px;border:none;font-size:14px;font-weight:600;cursor:pointer;font-family:-apple-system,sans-serif}
+.conf-btns button{flex:1;padding:12px;border-radius:10px;border:none;font-size:14px;font-weight:600;cursor:pointer}
 .conf-cancel{background:var(--s2);color:var(--t2)}
 .conf-ok{background:var(--r);color:#fff}
 /* TYPE COLORS */
@@ -204,47 +217,43 @@ body {
 .opd-btn:active{transform:scale(1.25)}
 /* DISCLAIMER */
 .disclaimer{position:fixed;bottom:calc(var(--saf-b) + 2px);left:0;right:0;text-align:right;padding:2px 14px;font-size:9px;color:var(--t3);pointer-events:none;z-index:55}
-
 </style>
 </head>
 <body>
 
-<!-- LOGIN -->
 <div id="login-screen">
+  <button class="theme-toggle-btn" onclick="toggleTheme()" style="position:absolute; top:calc(var(--saf-t) + 16px); right:20px; background:var(--s2); border:1px solid var(--bo); border-radius:50%; width:36px; height:36px; font-size:16px; cursor:pointer; display:flex; align-items:center; justify-content:center; color:var(--t)">☀️</button>
   <div class="login-logo" id="login-granny">
     <div class="granny-wrap"><video class="granny" src="Video.mp4" autoplay loop muted playsinline onclick="grannyTurbo()" id="granny-vid"></video></div>
   </div>
   <div class="login-title">Consult <b>E-Record</b></div>
 
-  <!-- MODE SELECTOR -->
   <div id="auth-tabs" style="display:flex;gap:0;background:var(--s2);border-radius:12px;padding:3px;width:100%">
-    <button id="tab-signin" onclick="authMode('signin')" style="flex:1;padding:9px;border:none;border-radius:9px;font-size:14px;font-weight:600;cursor:pointer;font-family:-apple-system,sans-serif;background:var(--a);color:#fff;transition:all .2s">Sign In</button>
-    <button id="tab-signup" onclick="authMode('signup')" style="flex:1;padding:9px;border:none;border-radius:9px;font-size:14px;font-weight:600;cursor:pointer;font-family:-apple-system,sans-serif;background:none;color:var(--t2);transition:all .2s">Sign Up</button>
+    <button id="tab-signin" onclick="authMode('signin')" style="flex:1;padding:9px;border:none;border-radius:9px;font-size:14px;font-weight:600;cursor:pointer;background:var(--a);color:#fff;transition:all .2s">Sign In</button>
+    <button id="tab-signup" onclick="authMode('signup')" style="flex:1;padding:9px;border:none;border-radius:9px;font-size:14px;font-weight:600;cursor:pointer;background:none;color:var(--t2);transition:all .2s">Sign Up</button>
   </div>
 
-  <!-- SIGN IN PANEL -->
   <div id="panel-signin" style="width:100%;display:flex;flex-direction:column;gap:10px">
     <input id="si-user" type="text" autocomplete="username" maxlength="32" placeholder="Username"
-      style="width:100%;padding:14px 16px;font-size:15px;background:var(--s2);border:1px solid var(--bo2);border-radius:12px;color:var(--t);outline:none;font-family:-apple-system,sans-serif"
+      style="width:100%;padding:14px 16px;font-size:15px;background:var(--s2);border:1px solid var(--bo2);border-radius:12px;color:var(--t);outline:none;"
       onkeydown="if(event.key==='Enter')document.getElementById('si-pass').focus()">
     <input id="si-pass" type="password" autocomplete="current-password" maxlength="64" placeholder="Password"
-      style="width:100%;padding:14px 16px;font-size:15px;background:var(--s2);border:1px solid var(--bo2);border-radius:12px;color:var(--t);outline:none;font-family:-apple-system,sans-serif"
+      style="width:100%;padding:14px 16px;font-size:15px;background:var(--s2);border:1px solid var(--bo2);border-radius:12px;color:var(--t);outline:none;"
       onkeydown="if(event.key==='Enter')doSignIn()">
-    <button onclick="doSignIn()" style="width:100%;padding:14px;background:var(--a);border:none;border-radius:12px;color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:-apple-system,sans-serif">Sign In</button>
-    <button onclick="authMode('forgot')" style="background:none;border:none;color:var(--t3);font-size:13px;cursor:pointer;font-family:-apple-system,sans-serif;padding:4px">Forgot password?</button>
+    <button onclick="doSignIn()" style="width:100%;padding:14px;background:var(--a);border:none;border-radius:12px;color:#fff;font-size:15px;font-weight:700;cursor:pointer;">Sign In</button>
+    <button onclick="authMode('forgot')" style="background:none;border:none;color:var(--t3);font-size:13px;cursor:pointer;padding:4px">Forgot password?</button>
     <div id="si-err" style="color:var(--r);font-size:13px;text-align:center;min-height:16px"></div>
   </div>
 
-  <!-- SIGN UP PANEL -->
   <div id="panel-signup" style="width:100%;display:none;flex-direction:column;gap:10px">
     <input id="su-user" type="text" autocomplete="username" maxlength="32" placeholder="Choose a username"
-      style="width:100%;padding:14px 16px;font-size:15px;background:var(--s2);border:1px solid var(--bo2);border-radius:12px;color:var(--t);outline:none;font-family:-apple-system,sans-serif">
+      style="width:100%;padding:14px 16px;font-size:15px;background:var(--s2);border:1px solid var(--bo2);border-radius:12px;color:var(--t);outline:none;">
     <input id="su-pass" type="password" autocomplete="new-password" maxlength="64" placeholder="Password (min 4 characters)"
-      style="width:100%;padding:14px 16px;font-size:15px;background:var(--s2);border:1px solid var(--bo2);border-radius:12px;color:var(--t);outline:none;font-family:-apple-system,sans-serif">
+      style="width:100%;padding:14px 16px;font-size:15px;background:var(--s2);border:1px solid var(--bo2);border-radius:12px;color:var(--t);outline:none;">
     <input id="su-pass2" type="password" autocomplete="new-password" maxlength="64" placeholder="Confirm password"
-      style="width:100%;padding:14px 16px;font-size:15px;background:var(--s2);border:1px solid var(--bo2);border-radius:12px;color:var(--t);outline:none;font-family:-apple-system,sans-serif">
+      style="width:100%;padding:14px 16px;font-size:15px;background:var(--s2);border:1px solid var(--bo2);border-radius:12px;color:var(--t);outline:none;">
     <div style="font-size:11px;color:var(--t3);padding:2px 2px 0;font-weight:600;text-transform:uppercase;letter-spacing:.4px">Security Questions (for password recovery)</div>
-    <select id="su-q1" onchange="toggleCustomQ('su',1)" style="width:100%;padding:12px 13px;font-size:13px;background:var(--s2);border:1px solid var(--bo2);border-radius:10px;color:var(--t);outline:none;font-family:-apple-system,sans-serif">
+    <select id="su-q1" onchange="toggleCustomQ('su',1)" style="width:100%;padding:12px 13px;font-size:13px;background:var(--s2);border:1px solid var(--bo2);border-radius:10px;color:var(--t);outline:none;">
       <option value="">Question 1 — select...</option>
       <option>ชื่อเล่นของคุณคืออะไร? (What is your nickname?)</option>
       <option>บ้านเกิดของคุณอยู่จังหวัดอะไร? (What province were you born in?)</option>
@@ -259,11 +268,11 @@ body {
       <option value="__custom__">✏️ ตั้งคำถามเอง (Write my own question)</option>
     </select>
     <input id="su-q1-custom" type="text" maxlength="100" placeholder="Write your own question..."
-      style="width:100%;padding:12px 13px;font-size:13px;background:var(--s2);border:1px solid var(--bo2);border-radius:10px;color:var(--t);outline:none;font-family:-apple-system,sans-serif;display:none">
+      style="width:100%;padding:12px 13px;font-size:13px;background:var(--s2);border:1px solid var(--bo2);border-radius:10px;color:var(--t);outline:none;display:none">
     <input id="su-a1" type="text" maxlength="64" placeholder="Answer 1"
-      style="width:100%;padding:12px 13px;font-size:14px;background:var(--s2);border:1px solid var(--bo2);border-radius:10px;color:var(--t);outline:none;font-family:-apple-system,sans-serif">
+      style="width:100%;padding:12px 13px;font-size:14px;background:var(--s2);border:1px solid var(--bo2);border-radius:10px;color:var(--t);outline:none;">
 
-    <select id="su-q2" onchange="toggleCustomQ('su',2)" style="width:100%;padding:12px 13px;font-size:13px;background:var(--s2);border:1px solid var(--bo2);border-radius:10px;color:var(--t);outline:none;font-family:-apple-system,sans-serif">
+    <select id="su-q2" onchange="toggleCustomQ('su',2)" style="width:100%;padding:12px 13px;font-size:13px;background:var(--s2);border:1px solid var(--bo2);border-radius:10px;color:var(--t);outline:none;">
       <option value="">Question 2 — select...</option>
       <option>ชื่อเล่นของคุณคืออะไร? (What is your nickname?)</option>
       <option>บ้านเกิดของคุณอยู่จังหวัดอะไร? (What province were you born in?)</option>
@@ -278,11 +287,11 @@ body {
       <option value="__custom__">✏️ ตั้งคำถามเอง (Write my own question)</option>
     </select>
     <input id="su-q2-custom" type="text" maxlength="100" placeholder="Write your own question..."
-      style="width:100%;padding:12px 13px;font-size:13px;background:var(--s2);border:1px solid var(--bo2);border-radius:10px;color:var(--t);outline:none;font-family:-apple-system,sans-serif;display:none">
+      style="width:100%;padding:12px 13px;font-size:13px;background:var(--s2);border:1px solid var(--bo2);border-radius:10px;color:var(--t);outline:none;display:none">
     <input id="su-a2" type="text" maxlength="64" placeholder="Answer 2"
-      style="width:100%;padding:12px 13px;font-size:14px;background:var(--s2);border:1px solid var(--bo2);border-radius:10px;color:var(--t);outline:none;font-family:-apple-system,sans-serif">
+      style="width:100%;padding:12px 13px;font-size:14px;background:var(--s2);border:1px solid var(--bo2);border-radius:10px;color:var(--t);outline:none;">
 
-    <select id="su-q3" onchange="toggleCustomQ('su',3)" style="width:100%;padding:12px 13px;font-size:13px;background:var(--s2);border:1px solid var(--bo2);border-radius:10px;color:var(--t);outline:none;font-family:-apple-system,sans-serif">
+    <select id="su-q3" onchange="toggleCustomQ('su',3)" style="width:100%;padding:12px 13px;font-size:13px;background:var(--s2);border:1px solid var(--bo2);border-radius:10px;color:var(--t);outline:none;">
       <option value="">Question 3 — select...</option>
       <option>ชื่อเล่นของคุณคืออะไร? (What is your nickname?)</option>
       <option>บ้านเกิดของคุณอยู่จังหวัดอะไร? (What province were you born in?)</option>
@@ -297,58 +306,54 @@ body {
       <option value="__custom__">✏️ ตั้งคำถามเอง (Write my own question)</option>
     </select>
     <input id="su-q3-custom" type="text" maxlength="100" placeholder="Write your own question..."
-      style="width:100%;padding:12px 13px;font-size:13px;background:var(--s2);border:1px solid var(--bo2);border-radius:10px;color:var(--t);outline:none;font-family:-apple-system,sans-serif;display:none">
+      style="width:100%;padding:12px 13px;font-size:13px;background:var(--s2);border:1px solid var(--bo2);border-radius:10px;color:var(--t);outline:none;display:none">
     <input id="su-a3" type="text" maxlength="64" placeholder="Answer 3"
-      style="width:100%;padding:12px 13px;font-size:14px;background:var(--s2);border:1px solid var(--bo2);border-radius:10px;color:var(--t);outline:none;font-family:-apple-system,sans-serif">
-    <button onclick="doSignUp()" style="width:100%;padding:14px;background:var(--g);border:none;border-radius:12px;color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:-apple-system,sans-serif;margin-top:2px">Create Account</button>
+      style="width:100%;padding:12px 13px;font-size:14px;background:var(--s2);border:1px solid var(--bo2);border-radius:10px;color:var(--t);outline:none;">
+    <button onclick="doSignUp()" style="width:100%;padding:14px;background:var(--g);border:none;border-radius:12px;color:#fff;font-size:15px;font-weight:700;cursor:pointer;margin-top:2px">Create Account</button>
     <div id="su-err" style="color:var(--r);font-size:13px;text-align:center;min-height:16px"></div>
   </div>
 
-  <!-- FORGOT PASSWORD PANEL -->
   <div id="panel-forgot" style="width:100%;display:none;flex-direction:column;gap:10px">
     <div style="font-size:13px;color:var(--t2);text-align:center">Enter your username to retrieve your security questions</div>
     <input id="fp-user" type="text" maxlength="32" placeholder="Username"
-      style="width:100%;padding:14px 16px;font-size:15px;background:var(--s2);border:1px solid var(--bo2);border-radius:12px;color:var(--t);outline:none;font-family:-apple-system,sans-serif">
-    <button onclick="fpLookup()" style="width:100%;padding:14px;background:var(--am);border:none;border-radius:12px;color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:-apple-system,sans-serif">Look Up Account</button>
-    <!-- Security Q answers — shown after lookup -->
+      style="width:100%;padding:14px 16px;font-size:15px;background:var(--s2);border:1px solid var(--bo2);border-radius:12px;color:var(--t);outline:none;">
+    <button onclick="fpLookup()" style="width:100%;padding:14px;background:var(--am);border:none;border-radius:12px;color:#fff;font-size:15px;font-weight:700;cursor:pointer;">Look Up Account</button>
     <div id="fp-qs" style="display:none;flex-direction:column;gap:10px">
       <div id="fp-q1-lbl" style="font-size:13px;color:var(--t2)"></div>
       <input id="fp-a1" type="text" maxlength="64" placeholder="Answer 1"
-        style="width:100%;padding:12px 13px;font-size:14px;background:var(--s2);border:1px solid var(--bo2);border-radius:10px;color:var(--t);outline:none;font-family:-apple-system,sans-serif">
+        style="width:100%;padding:12px 13px;font-size:14px;background:var(--s2);border:1px solid var(--bo2);border-radius:10px;color:var(--t);outline:none;">
       <div id="fp-q2-lbl" style="font-size:13px;color:var(--t2)"></div>
       <input id="fp-a2" type="text" maxlength="64" placeholder="Answer 2"
-        style="width:100%;padding:12px 13px;font-size:14px;background:var(--s2);border:1px solid var(--bo2);border-radius:10px;color:var(--t);outline:none;font-family:-apple-system,sans-serif">
+        style="width:100%;padding:12px 13px;font-size:14px;background:var(--s2);border:1px solid var(--bo2);border-radius:10px;color:var(--t);outline:none;">
       <div id="fp-q3-lbl" style="font-size:13px;color:var(--t2)"></div>
       <input id="fp-a3" type="text" maxlength="64" placeholder="Answer 3"
-        style="width:100%;padding:12px 13px;font-size:14px;background:var(--s2);border:1px solid var(--bo2);border-radius:10px;color:var(--t);outline:none;font-family:-apple-system,sans-serif">
-      <button onclick="fpVerify()" style="width:100%;padding:14px;background:var(--am);border:none;border-radius:12px;color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:-apple-system,sans-serif">Verify Answers</button>
+        style="width:100%;padding:12px 13px;font-size:14px;background:var(--s2);border:1px solid var(--bo2);border-radius:10px;color:var(--t);outline:none;">
+      <button onclick="fpVerify()" style="width:100%;padding:14px;background:var(--am);border:none;border-radius:12px;color:#fff;font-size:15px;font-weight:700;cursor:pointer;">Verify Answers</button>
     </div>
-    <!-- New password — shown after verification -->
     <div id="fp-newpass" style="display:none;flex-direction:column;gap:10px">
       <div style="font-size:13px;color:var(--g);text-align:center">✅ Answers correct — set a new password</div>
       <input id="fp-np1" type="password" maxlength="64" placeholder="New password (min 4 characters)"
-        style="width:100%;padding:14px 16px;font-size:15px;background:var(--s2);border:1px solid var(--bo2);border-radius:12px;color:var(--t);outline:none;font-family:-apple-system,sans-serif">
+        style="width:100%;padding:14px 16px;font-size:15px;background:var(--s2);border:1px solid var(--bo2);border-radius:12px;color:var(--t);outline:none;">
       <input id="fp-np2" type="password" maxlength="64" placeholder="Confirm new password"
-        style="width:100%;padding:14px 16px;font-size:15px;background:var(--s2);border:1px solid var(--bo2);border-radius:12px;color:var(--t);outline:none;font-family:-apple-system,sans-serif">
-      <button onclick="fpReset()" style="width:100%;padding:14px;background:var(--g);border:none;border-radius:12px;color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:-apple-system,sans-serif">Set New Password</button>
+        style="width:100%;padding:14px 16px;font-size:15px;background:var(--s2);border:1px solid var(--bo2);border-radius:12px;color:var(--t);outline:none;">
+      <button onclick="fpReset()" style="width:100%;padding:14px;background:var(--g);border:none;border-radius:12px;color:#fff;font-size:15px;font-weight:700;cursor:pointer;">Set New Password</button>
     </div>
-    <button onclick="authMode('signin')" style="background:none;border:none;color:var(--t3);font-size:13px;cursor:pointer;font-family:-apple-system,sans-serif;padding:4px">← Back to Sign In</button>
+    <button onclick="authMode('signin')" style="background:none;border:none;color:var(--t3);font-size:13px;cursor:pointer;padding:4px">← Back to Sign In</button>
     <div id="fp-err" style="color:var(--r);font-size:13px;text-align:center;min-height:16px"></div>
   </div>
 </div>
 
-<!-- LOADING -->
 <div id="loading">
   <div class="spin"></div>
   <div class="load-txt" id="load-txt">Loading...</div>
 </div>
 
-<!-- APP -->
 <div id="app" style="display:none">
   <div id="hdr">
     <div class="htop">
       <div class="htitle" id="admin-trigger" onclick="adminTap()">Consult <b>E-Record</b></div>
       <div style="display:flex;align-items:center;gap:8px">
+        <button class="hbin theme-toggle-btn" onclick="toggleTheme()" aria-label="Toggle Theme">☀️</button>
         <button class="hbin" onclick="confirmClearAll()" aria-label="Clear all data">🗑</button>
         <button class="hbin" onclick="doSignOut()" title="Sign out" style="font-size:18px;background:var(--s2);color:var(--t2)" id="user-lbl">🚪</button>
       </div>
@@ -377,7 +382,6 @@ body {
   </div>
 </div>
 
-<!-- ADD/EDIT -->
 <div class="ov-wrap" id="ov-add" onclick="bkd(event,'ov-add')">
  <div class="sheet">
   <div class="shdl"></div>
@@ -409,22 +413,20 @@ body {
      <button class="qd" onclick="qd(90,'ffu')">+3mo</button>
     </div>
    </div>
-   <!-- First visit date — only shown for new cases, hidden on edit/follow-up -->
    <div class="fg" id="fvisit-wrap">
     <label class="fl">First Visit Date <span style="color:var(--g);font-size:10px;font-weight:400;text-transform:none;letter-spacing:0">Used for statistics</span></label>
     <input class="fi" id="fvisit" type="date">
     <div style="font-size:11px;color:var(--t3);margin-top:4px">📊 Stats count first visits only — set to today by default</div>
    </div>
-   <!-- VIP + OPD toggles -->
    <div class="fg">
     <label class="fl">Flags</label>
     <div style="display:flex;gap:10px">
      <button id="f-vip-btn" type="button" onclick="toggleFormVip()"
-       style="flex:1;padding:11px;border-radius:var(--rsm);border:1px solid var(--bo);background:var(--s2);color:var(--t2);font-size:14px;font-weight:600;cursor:pointer;font-family:-apple-system,sans-serif;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:6px">
+       style="flex:1;padding:11px;border-radius:var(--rsm);border:1px solid var(--bo);background:var(--s2);color:var(--t2);font-size:14px;font-weight:600;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:6px">
        <span>☆</span><span>VIP</span>
      </button>
      <button id="f-opd-btn" type="button" onclick="toggleFormOpd()"
-       style="flex:1;padding:11px;border-radius:var(--rsm);border:1px solid var(--bo);background:var(--s2);color:var(--t2);font-size:14px;font-weight:600;cursor:pointer;font-family:-apple-system,sans-serif;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:6px">
+       style="flex:1;padding:11px;border-radius:var(--rsm);border:1px solid var(--bo);background:var(--s2);color:var(--t2);font-size:14px;font-weight:600;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:6px">
        <span style="filter:grayscale(1) opacity(.4)">✅</span><span>OPD set</span>
      </button>
     </div>
@@ -435,7 +437,6 @@ body {
  </div>
 </div>
 
-<!-- DETAIL -->
 <div class="ov-wrap" id="ov-det" onclick="bkd(event,'ov-det')">
  <div class="sheet">
   <div class="shdl"></div>
@@ -444,7 +445,6 @@ body {
  </div>
 </div>
 
-<!-- FU DATE -->
 <div class="ov-wrap" id="ov-fu" onclick="bkd(event,'ov-fu')">
  <div class="sheet">
   <div class="shdl"></div>
@@ -466,7 +466,6 @@ body {
  </div>
 </div>
 
-<!-- CONFIRM MODAL -->
 <div class="conf-wrap" id="conf-wrap">
   <div class="conf-box">
     <div class="conf-icon" id="conf-icon">⚠️</div>
@@ -482,7 +481,6 @@ body {
 <div class="toast" id="toast"></div>
 <div class="disclaimer">Unofficial — please use with caution</div>
 
-<!-- ADMIN BACKDOOR -->
 <div class="ov-wrap" id="ov-admin" onclick="bkd(event,'ov-admin')">
  <div class="sheet" style="max-height:95vh">
   <div class="shdl"></div>
@@ -496,7 +494,6 @@ body {
  </div>
 </div>
 
-<!-- ADMIN LOGIN -->
 <div class="ov-wrap" id="ov-adminlogin" onclick="bkd(event,'ov-adminlogin')">
  <div class="sheet">
   <div class="shdl"></div>
@@ -511,10 +508,28 @@ body {
  </div>
 </div>
 
-<!-- FIREBASE via CDN -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <script>
+// Theme Toggler
+const savedTheme = localStorage.getItem('rehab_theme') || 'dark';
+document.documentElement.setAttribute('data-theme', savedTheme);
+
+window.toggleTheme = function() {
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  const newTheme = isDark ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', newTheme);
+  localStorage.setItem('rehab_theme', newTheme);
+  updateThemeBtns(newTheme);
+};
+
+function updateThemeBtns(theme) {
+  document.querySelectorAll('.theme-toggle-btn').forEach(btn => {
+    btn.textContent = theme === 'dark' ? '☀️' : '🌙';
+  });
+}
+document.addEventListener('DOMContentLoaded', () => updateThemeBtns(savedTheme));
+
 firebase.initializeApp({
   apiKey:"AIzaSyCfFKjk49sIs9ybiCkJzqC2j0YAOf7i5YI",
   authDomain:"rehab-consult.firebaseapp.com",
@@ -962,6 +977,22 @@ const dayLbl=s=>{
   return['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][new Date(s+'T00:00:00').getDay()]+' '+fd(s);
 };
 
+const sortW = (arr) => arr.sort((a,b) => {
+  const p = s => {
+    if(!s) return {t:3, v:0, o:''};
+    const w = String(s).split('/')[0].trim().toLowerCase();
+    if(w==='ccu'||w==='iccu') return {t:0, v:4, o:w};
+    if(w==='micu') return {t:0, v:10, o:w};
+    if(w.startsWith('สก')) return {t:1, v:parseInt(w.replace('สก',''))||0, o:w};
+    const n = parseInt(w);
+    return !isNaN(n) ? {t:0, v:n, o:w} : {t:2, v:0, o:w};
+  };
+  const wa=p(a.wd), wb=p(b.wd);
+  if(wa.t!==wb.t) return wa.t-wb.t; // Order: Normal Numbers (0) -> สก (1) -> Others (2) -> Empty (3)
+  if(wa.t<2 && wa.v!==wb.v) return wb.v-wa.v; // Descending sort (highest to lowest)
+  return wa.o.localeCompare(wb.o); // Alphabetical tie-breaker
+});
+
 function card(c){
   const t=today(),ov=!c.dc&&c.fu&&c.fu<t,isT=c.fu===t;
   const flab=c.dc?`<span class="fd">DC ${fd(c.dcDate)}</span>`:
@@ -1016,6 +1047,7 @@ function syncBar(){
 function rToday(){
   const all=load(),t=today(),act=all.filter(c=>!c.dc);
   const ov=act.filter(c=>c.fu&&c.fu<t),td=act.filter(c=>c.fu===t),nd=act.filter(c=>!c.fu);
+  sortW(ov); sortW(td); sortW(nd);
   let h=syncBar();
   const impCount=all.filter(c=>!c.dc&&c.fu&&c.fu>t&&c.fu<=weekEnd()).length;
   h+=`<div class="sbar">
@@ -1036,7 +1068,7 @@ function rImp(){
   const cases=load().filter(c=>!c.dc&&c.fu&&c.fu>=tom&&c.fu<=we).sort((a,b)=>a.fu.localeCompare(b.fu));
   let h='';
   if(!cases.length){h=`<div class="empty"><div class="ei">📆</div><div class="et">No upcoming cases this week</div><div class="es">Cases with F/U from tomorrow to Friday appear here</div></div>`}
-  else{const g={};cases.forEach(c=>{(g[c.fu]=g[c.fu]||[]).push(c)});h=Object.keys(g).sort().map(k=>`<div class="sh imp">📅 ${dayLbl(k)} <span style="color:var(--t3);font-size:11px">(${g[k].length})</span></div><div class="cards">${g[k].map(card).join('')}</div>`).join('')}
+  else{const g={};cases.forEach(c=>{(g[c.fu]=g[c.fu]||[]).push(c)});h=Object.keys(g).sort().map(k=>`<div class="sh imp">📅 ${dayLbl(k)} <span style="color:var(--t3);font-size:11px">(${g[k].length})</span></div><div class="cards">${sortW(g[k]).map(card).join('')}</div>`).join('')}
   set('v-imp',h);
 }
 
@@ -1067,8 +1099,8 @@ function rDoneCards(){
   else{
     const withDate=cases.filter(c=>c.fu).sort((a,b)=>a.fu.localeCompare(b.fu));
     const noDate=cases.filter(c=>!c.fu);
-    if(withDate.length){const g={};withDate.forEach(c=>{(g[c.fu]=g[c.fu]||[]).push(c)});h+=Object.keys(g).sort().map(k=>`<div class="sh">📋 ${dayLbl(k)} (${g[k].length})</div><div class="cards">${g[k].map(card).join('')}</div>`).join('')}
-    if(noDate.length)h+=`<div class="sh">No F/U date (${noDate.length})</div><div class="cards">${noDate.map(card).join('')}</div>`;
+    if(withDate.length){const g={};withDate.forEach(c=>{(g[c.fu]=g[c.fu]||[]).push(c)});h+=Object.keys(g).sort().map(k=>`<div class="sh">📋 ${dayLbl(k)} (${g[k].length})</div><div class="cards">${sortW(g[k]).map(card).join('')}</div>`).join('')}
+    if(noDate.length)h+=`<div class="sh">No F/U date (${noDate.length})</div><div class="cards">${sortW(noDate).map(card).join('')}</div>`;
   }
   set('done-cards',h);
 }
@@ -1110,7 +1142,7 @@ function rDcCards(){
     const g={};cases.forEach(c=>{const k=monthKey(c.dcDate||c.fu);(g[k]=g[k]||[]).push(c)});
     const mn=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     const sorted=Object.keys(g).sort((a,b)=>{const toN=s=>{const[m,y]=s.split(' ');return parseInt(y)*12+mn.indexOf(m)};return toN(b)-toN(a)});
-    h+=sorted.map(k=>`<div class="mhdr">📦 ${k} <span>(${g[k].length})</span></div><div class="cards">${g[k].map(card).join('')}</div>`).join('');
+    h+=sorted.map(k=>`<div class="mhdr">📦 ${k} <span>(${g[k].length})</span></div><div class="cards">${sortW(g[k]).map(card).join('')}</div>`).join('');
   }
   set('dc-cards',h);
 }
@@ -1118,7 +1150,7 @@ function rDcCards(){
 /* ===== VIP ===== */
 function rVip(){
   const cases=load().filter(c=>c.st);
-  set('v-vip',cases.length?`<div class="cards">${cases.map(card).join('')}</div>`:`<div class="empty"><div class="ei">⭐</div><div class="et">No VIP cases</div><div class="es">Tap ★ on any case</div></div>`);
+  set('v-vip',cases.length?`<div class="cards">${sortW(cases).map(card).join('')}</div>`:`<div class="empty"><div class="ei">⭐</div><div class="et">No VIP cases</div><div class="es">Tap ★ on any case</div></div>`);
 }
 
 /* ===== STATS ===== */
