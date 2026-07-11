@@ -251,7 +251,6 @@ input[type=date]{cursor:pointer}
 .vz-fn{opacity:.65}
 .vz-ct{background:var(--a);color:#fff;border-radius:8px;min-width:14px;height:12px;line-height:12px;text-align:center;font-size:9px;font-weight:700;padding:0 3px}
 .vz-gap{position:relative;align-self:stretch}
-.vz-bridge{position:absolute;left:-2px;right:-2px;background:var(--s2);border:1.5px solid var(--bo2);display:flex;align-items:center;justify-content:center;font-size:8px;color:var(--t2);font-weight:700;border-radius:3px}
 .vz-oth{display:flex;align-items:center;justify-content:center;cursor:pointer}
 .vz-oct{background:var(--am);color:#fff;border-radius:10px;min-width:22px;height:20px;line-height:20px;text-align:center;font-size:12px;font-weight:700;padding:0 6px}
 </style>
@@ -397,13 +396,13 @@ input[type=date]{cursor:pointer}
       </div>
     </div>
     <div class="tabs">
+      <button class="tab" id="t-rem" onclick="go('rem')">📝 Reminder<span class="bdg h" id="b-rem"></span></button>
       <button class="tab on" id="t-today" onclick="go('today')">📋 Today<span class="bdg h" id="b-today"></span></button>
       <button class="tab" id="t-imp" onclick="go('imp')">⏰ Impending<span class="bdg h" id="b-imp"></span></button>
       <button class="tab" id="t-done" onclick="go('done')">📋 All Cases<span class="bdg h" id="b-done"></span></button>
       <button class="tab" id="t-viz" onclick="go('viz')">🏥 Visualize</button>
       <button class="tab" id="t-dc" onclick="go('dc')">🏠 Discharged<span class="bdg h" id="b-dc"></span></button>
       <button class="tab" id="t-vip" onclick="go('vip')">⭐ VIP<span class="bdg h" id="b-vip"></span></button>
-      <button class="tab" id="t-rem" onclick="go('rem')">📝 Reminder<span class="bdg h" id="b-rem"></span></button>
       <button class="tab" id="t-stats" onclick="go('stats')">📊 Stats</button>
     </div>
   </div>
@@ -1280,6 +1279,7 @@ function badges(){
   b('b-dc',all.filter(c=>c.dc).length);
   b('b-vip',all.filter(c=>c.st).length);
   b('b-rem',all.filter(c=>!c.dc).reduce((n,c)=>n+((c.rem||[]).filter(r=>!r.done).length),0));
+  if(window.applyTabPrefs)applyTabPrefs();
 }
 window.badges=badges;
 
@@ -1695,10 +1695,15 @@ async function adminChangePw(){
 }
 
 /* ═══════════════ TAB SETTINGS (⚙️) ═══════════════ */
-const TAB_IDS=['today','imp','done','viz','dc','vip','rem','stats'];
-const TAB_LABELS={today:'📋 Today',imp:'⏰ Impending',done:'📋 All Cases',viz:'🏥 Visualize',dc:'🏠 Discharged',vip:'⭐ VIP',rem:'📝 Reminder',stats:'📊 Stats'};
+const TAB_IDS=['rem','today','imp','done','viz','dc','vip','stats'];
+const TAB_LABELS={rem:'📝 Reminder',today:'📋 Today',imp:'⏰ Impending',done:'📋 All Cases',viz:'🏥 Visualize',dc:'🏠 Discharged',vip:'⭐ VIP',stats:'📊 Stats'};
 function tabPrefs(){try{return JSON.parse(localStorage.getItem('rehab_tabs'))||{}}catch{return{}}}
-function tabVisible(id){return tabPrefs()[id]!==false}
+function remActiveCount(){return load().filter(c=>!c.dc).reduce((n,c)=>n+((c.rem||[]).filter(r=>!r.done).length),0)}
+function tabVisible(id){
+  if(tabPrefs()[id]===false)return false;
+  if(id==='rem')return remActiveCount()>0; // auto-hide Reminder tab when nothing is active
+  return true;
+}
 function applyTabPrefs(){
   TAB_IDS.forEach(id=>{const el=document.getElementById('t-'+id);if(el)el.style.display=tabVisible(id)?'':'none'});
   if(!tabVisible(tab)){const first=TAB_IDS.find(tabVisible);if(first)go(first)}
@@ -1909,7 +1914,7 @@ function rViz(){
     let r='';
     for(let f=total;f>=1;f--){
       const n=(data[f]||[]).length;
-      r+=`<div class="vz-fl${n?' has':''}" style="height:${VZ_FH}px"${n?` onclick="vzTap('${b}',${f})"`:''}><span class="vz-fn">${f}</span>${n?`<span class="vz-ct">${n}</span>`:''}</div>`;
+      r+=`<div class="vz-fl${n?' has':''}" id="vzf-${b}-${f}" style="height:${VZ_FH}px"${n?` onclick="vzTap('${b}',${f})"`:''}><span class="vz-fn">${f}</span>${n?`<span class="vz-ct">${n}</span>`:''}</div>`;
     }
     return r;
   };
@@ -1920,15 +1925,34 @@ function rViz(){
    <div class="sc"><div class="sn" style="color:var(--am)">${oth.length}</div><div class="sl">Others</div></div>
   </div>
   <div style="font-size:11px;color:var(--t3);margin-bottom:4px">🏥 Active cases by floor — tap a highlighted floor to see who's there</div>
-  <div class="vz-wrap">
+  <div class="vz-wrap" id="vz-wrap" style="position:relative">
+    <svg id="vz-bridge-svg" style="position:absolute;left:0;top:0;width:100%;height:100%;overflow:visible;pointer-events:none"></svg>
     <div class="vz-b" style="width:36%"><div class="vz-name">ภูมิสิริ</div><div class="vz-body">${floors('p',28,p)}</div></div>
-    <div class="vz-gap" style="width:9%"><div class="vz-bridge" style="bottom:${6*VZ_FH+2}px;height:${VZ_FH+4}px;transform:skewY(-7deg)">7↔8</div></div>
+    <div class="vz-gap" style="width:9%"></div>
     <div class="vz-b" style="width:30%"><div class="vz-name">สก.</div><div class="vz-body">${floors('s',20,sk)}</div></div>
     <div style="width:5%"></div>
     <div class="vz-b" style="width:20%"><div class="vz-name">Others</div><div class="vz-body vz-oth" style="height:${5*VZ_FH}px"${oth.length?` onclick="vzTap('o',0)"`:''}>${oth.length?`<div class="vz-oct">${oth.length}</div>`:`<div style="font-size:9px;color:var(--t3)">–</div>`}</div></div>
   </div>`;
   set('v-viz',h);
+  requestAnimationFrame(vzDrawBridge);
 }
+
+// Draws an accurate line connecting ภูมิสิริ floor 8 to สก floor 7 by measuring
+// the real rendered positions of those two floor rows (not a guessed skew).
+function vzDrawBridge(){
+  const wrap=document.getElementById('vz-wrap'),svg=document.getElementById('vz-bridge-svg');
+  const pFloor=document.getElementById('vzf-p-8'),sFloor=document.getElementById('vzf-s-7');
+  if(!wrap||!svg||!pFloor||!sFloor)return;
+  const wr=wrap.getBoundingClientRect(),pr=pFloor.getBoundingClientRect(),sr=sFloor.getBoundingClientRect();
+  const x1=pr.right-wr.left,y1=pr.top+pr.height/2-wr.top;
+  const x2=sr.left-wr.left,y2=sr.top+sr.height/2-wr.top;
+  const mx=(x1+x2)/2,my=(y1+y2)/2;
+  svg.innerHTML=`
+    <line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="var(--bo2)" stroke-width="4" stroke-linecap="round"/>
+    <rect x="${mx-11}" y="${my-7}" width="22" height="14" rx="3" fill="var(--s2)" stroke="var(--bo2)" stroke-width="1"/>
+    <text x="${mx}" y="${my+3}" font-size="7" font-weight="700" text-anchor="middle" fill="var(--t2)">8↔7</text>`;
+}
+window.addEventListener('resize',()=>{if(document.getElementById('vz-wrap'))vzDrawBridge()});
 function vzTap(b,f){
   const act=load().filter(c=>!c.dc);
   const list=act.filter(c=>{const l=wardLoc(c.wd);return l.b===b&&(b==='o'||l.f===f)});
