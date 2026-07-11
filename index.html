@@ -253,6 +253,12 @@ input[type=date]{cursor:pointer}
 .vz-gap{position:relative;align-self:stretch}
 .vz-oth{display:flex;align-items:center;justify-content:center;cursor:pointer}
 .vz-oct{background:var(--am);color:#fff;border-radius:10px;min-width:22px;height:20px;line-height:20px;text-align:center;font-size:12px;font-weight:700;padding:0 6px}
+.vz-segwrap{display:flex;flex:1;height:100%;align-items:stretch;overflow:hidden}
+.vz-seg{flex:1;display:flex;align-items:center;justify-content:center;gap:2px;font-size:6.5px;color:var(--t3);border-left:1px solid var(--bo);min-width:0}
+.vz-seg:first-child{border-left:none}
+.vz-seg.has{background:rgba(108,111,255,.22);color:var(--t);cursor:pointer;font-weight:700}
+.vz-segl{opacity:.75;overflow:hidden;text-overflow:clip;white-space:nowrap}
+.vz-segn{background:var(--a);color:#fff;border-radius:6px;min-width:9px;height:9px;line-height:9px;text-align:center;font-size:6.5px;font-weight:700;padding:0 2px;flex-shrink:0}
 </style>
 </head>
 <body>
@@ -525,6 +531,10 @@ input[type=date]{cursor:pointer}
   <div class="shhdr"><div class="shtitle">⚙️ Tab Settings</div><button class="xcls" onclick="cls('ov-settings')">✕</button></div>
   <div style="padding:8px 16px 0;font-size:12px;color:var(--t3)">Choose which tabs to show. You can change this anytime by tapping ⚙️.</div>
   <div id="settings-body" style="padding:4px 16px 16px"></div>
+  <div style="padding:0 16px 16px;border-top:1px solid var(--bo);margin-top:4px">
+   <div style="font-size:11px;color:var(--t3);font-weight:600;text-transform:uppercase;letter-spacing:.4px;padding:14px 0 8px">Migrate existing records</div>
+   <button class="expbtn" style="width:100%;justify-content:center;box-sizing:border-box" onclick="cls('ov-settings');setTimeout(openImport,180)">📥 Import cases from Google Sheet / Excel / CSV</button>
+  </div>
  </div>
 </div>
 
@@ -558,6 +568,14 @@ input[type=date]{cursor:pointer}
  </div>
 </div>
 <input type="file" id="pic-file" accept="image/*" style="display:none">
+
+<div class="ov-wrap" id="ov-import" onclick="bkd(event,'ov-import')">
+ <div class="sheet" style="max-height:92vh">
+  <div class="shdl"></div>
+  <div class="shhdr"><div class="shtitle">📥 Import Cases</div><button class="xcls" onclick="cls('ov-import')">✕</button></div>
+  <div id="imp-body" style="padding:14px 16px 20px"></div>
+ </div>
+</div>
 
 <div class="toast" id="toast"></div>
 <div class="disclaimer">Unofficial — please use with caution</div>
@@ -1886,50 +1904,97 @@ document.getElementById('pic-file').addEventListener('change',async e=>{
 
 /* ═══════════════ VISUALIZE (🏥 buildings) ═══════════════ */
 const VZ_FH=15; // px per floor
+const VZ_SEG_FLOORS=[15,27]; // ภูมิสิริ floor range that is divided into wings A/B/C
+// Parses a ward string into {b:'p'|'s'|'o', f:floorNumber, seg:wingLabel|null}.
+// Delimiter-agnostic — handles "18c/17-1", "26B 9-1", "21B-4", "สก18ลุม/301", "สก4/405-1", etc.
 function wardLoc(wd){
   if(!wd)return{b:'o'};
-  const w=String(wd).split('/')[0].trim();
-  if(/^สก/.test(w)){
-    const f=parseInt(w.replace(/^สก\.?\s*/,''),10);
-    return(f>=1&&f<=20)?{b:'s',f}:{b:'o'};
+  const raw=String(wd).trim();
+  let m=raw.match(/^สก\.?\s*(\d{1,2})\s*([A-Za-zก-๙]*)/);
+  if(m){
+    const f=parseInt(m[1],10);
+    const seg=(m[2]||'').trim();
+    return(f>=1&&f<=20)?{b:'s',f,seg:seg||null}:{b:'o'};
   }
-  if(/^\d/.test(w)){
-    const n=parseInt(w,10);
-    if(n>=1&&n<=28)return{b:'p',f:n};
+  m=raw.match(/^(\d{1,2})\s*([A-Za-zก-๙]*)/);
+  if(m){
+    const f=parseInt(m[1],10);
+    let seg=(m[2]||'').trim();
+    const lm=seg.match(/[A-Za-z]/); // normalize A1/B2/etc → first letter only
+    seg=lm?lm[0].toUpperCase():null;
+    if(f>=1&&f<=28){
+      const useSeg=(f>=VZ_SEG_FLOORS[0]&&f<=VZ_SEG_FLOORS[1])?seg:null;
+      return{b:'p',f,seg:useSeg};
+    }
   }
   return{b:'o'};
 }
+function vzGroup(cases,building){
+  const g={};
+  cases.forEach(c=>{
+    const l=wardLoc(c.wd);
+    if(l.b!==building)return;
+    g[l.f]=g[l.f]||{};
+    const key=l.seg||'_';
+    (g[l.f][key]=g[l.f][key]||[]).push(c);
+  });
+  return g;
+}
+function vzFloorTotal(segs){return segs?Object.values(segs).reduce((n,a)=>n+a.length,0):0}
+function vzSimpleFloorHTML(b,f,segs){
+  const n=vzFloorTotal(segs);
+  return`<div class="vz-fl${n?' has':''}" id="vzf-${b}-${f}" style="height:${VZ_FH}px"${n?` onclick="vzTap('${b}',${f})"`:''}><span class="vz-fn">${f}</span>${n?`<span class="vz-ct">${n}</span>`:''}</div>`;
+}
+function vzSegFloorHTML(b,f,segs,labels){
+  const n=vzFloorTotal(segs);
+  const cells=labels.map(lab=>{
+    const arr=(segs&&segs[lab.key])||[];const c=arr.length;
+    return`<div class="vz-seg${c?' has':''}"${c?` onclick="vzTap('${b}',${f},'${lab.key}')"`:''} title="${esc(lab.title)}"><span class="vz-segl">${esc(lab.short)}</span>${c?`<span class="vz-segn">${c}</span>`:''}</div>`;
+  }).join('');
+  return`<div class="vz-fl${n?' has':''}" id="vzf-${b}-${f}" style="height:${VZ_FH}px"><span class="vz-fn">${f}</span><div class="vz-segwrap">${cells}</div></div>`;
+}
 function rViz(){
   const act=load().filter(c=>!c.dc);
-  const p={},sk={};const oth=[];
-  act.forEach(c=>{
-    const l=wardLoc(c.wd);
-    if(l.b==='p')(p[l.f]=p[l.f]||[]).push(c);
-    else if(l.b==='s')(sk[l.f]=sk[l.f]||[]).push(c);
-    else oth.push(c);
-  });
-  const pN=Object.values(p).reduce((n,a)=>n+a.length,0);
-  const sN=Object.values(sk).reduce((n,a)=>n+a.length,0);
-  const floors=(b,total,data)=>{
-    let r='';
-    for(let f=total;f>=1;f--){
-      const n=(data[f]||[]).length;
-      r+=`<div class="vz-fl${n?' has':''}" id="vzf-${b}-${f}" style="height:${VZ_FH}px"${n?` onclick="vzTap('${b}',${f})"`:''}><span class="vz-fn">${f}</span>${n?`<span class="vz-ct">${n}</span>`:''}</div>`;
+  const p=vzGroup(act,'p'),sk=vzGroup(act,'s');
+  const oth=act.filter(c=>wardLoc(c.wd).b==='o');
+  const pN=Object.values(p).reduce((n,segs)=>n+vzFloorTotal(segs),0);
+  const sN=Object.values(sk).reduce((n,segs)=>n+vzFloorTotal(segs),0);
+
+  const pFloors=(()=>{let r='';
+    for(let f=28;f>=1;f--){
+      if(f>=VZ_SEG_FLOORS[0]&&f<=VZ_SEG_FLOORS[1]){
+        const labels=['A','B','C'].map(s=>({key:s,short:s,title:'Wing '+s}));
+        r+=vzSegFloorHTML('p',f,p[f],labels);
+      }else r+=vzSimpleFloorHTML('p',f,p[f]);
     }
     return r;
-  };
+  })();
+
+  const sFloors=(()=>{let r='';
+    for(let f=20;f>=1;f--){
+      const segs=sk[f];
+      const namedKeys=segs?Object.keys(segs).filter(k=>k!=='_'):[];
+      if(namedKeys.length){
+        const labels=namedKeys.map(k=>({key:k,short:k.length>2?k.slice(0,2):k,title:k}));
+        if(segs['_'])labels.push({key:'_',short:'?',title:'Unspecified wing'});
+        r+=vzSegFloorHTML('s',f,segs,labels);
+      }else r+=vzSimpleFloorHTML('s',f,segs);
+    }
+    return r;
+  })();
+
   const h=`
   <div class="sbar">
    <div class="sc"><div class="sn" style="color:var(--a)">${pN}</div><div class="sl">ภูมิสิริ</div></div>
    <div class="sc"><div class="sn" style="color:var(--g)">${sN}</div><div class="sl">สก.</div></div>
    <div class="sc"><div class="sn" style="color:var(--am)">${oth.length}</div><div class="sl">Others</div></div>
   </div>
-  <div style="font-size:11px;color:var(--t3);margin-bottom:4px">🏥 Active cases by floor — tap a highlighted floor to see who's there</div>
+  <div style="font-size:11px;color:var(--t3);margin-bottom:4px">🏥 Active cases by floor — ภูมิสิริ 15–27 &amp; สก wings split by segment. Tap a highlighted cell to see who's there.</div>
   <div class="vz-wrap" id="vz-wrap" style="position:relative">
     <svg id="vz-bridge-svg" style="position:absolute;left:0;top:0;width:100%;height:100%;overflow:visible;pointer-events:none"></svg>
-    <div class="vz-b" style="width:36%"><div class="vz-name">ภูมิสิริ</div><div class="vz-body">${floors('p',28,p)}</div></div>
+    <div class="vz-b" style="width:36%"><div class="vz-name">ภูมิสิริ</div><div class="vz-body">${pFloors}</div></div>
     <div class="vz-gap" style="width:9%"></div>
-    <div class="vz-b" style="width:30%"><div class="vz-name">สก.</div><div class="vz-body">${floors('s',20,sk)}</div></div>
+    <div class="vz-b" style="width:30%"><div class="vz-name">สก.</div><div class="vz-body">${sFloors}</div></div>
     <div style="width:5%"></div>
     <div class="vz-b" style="width:20%"><div class="vz-name">Others</div><div class="vz-body vz-oth" style="height:${5*VZ_FH}px"${oth.length?` onclick="vzTap('o',0)"`:''}>${oth.length?`<div class="vz-oct">${oth.length}</div>`:`<div style="font-size:9px;color:var(--t3)">–</div>`}</div></div>
   </div>`;
@@ -1953,13 +2018,249 @@ function vzDrawBridge(){
     <text x="${mx}" y="${my+3}" font-size="7" font-weight="700" text-anchor="middle" fill="var(--t2)">8↔7</text>`;
 }
 window.addEventListener('resize',()=>{if(document.getElementById('vz-wrap'))vzDrawBridge()});
-function vzTap(b,f){
+function vzTap(b,f,seg){
   const act=load().filter(c=>!c.dc);
-  const list=act.filter(c=>{const l=wardLoc(c.wd);return l.b===b&&(b==='o'||l.f===f)});
+  const list=act.filter(c=>{
+    const l=wardLoc(c.wd);
+    if(l.b!==b)return false;
+    if(b==='o')return true;
+    if(l.f!==f)return false;
+    if(seg===undefined)return true;
+    return(l.seg||'_')===seg;
+  });
   if(!list.length)return;
-  const lbl=b==='p'?`ภูมิสิริ ชั้น ${f}`:b==='s'?`สก. ชั้น ${f}`:'Others';
+  const wingTxt=seg&&seg!=='_'?` wing ${seg}`:'';
+  const lbl=b==='p'?`ภูมิสิริ ชั้น ${f}${wingTxt}`:b==='s'?`สก. ชั้น ${f}${wingTxt}`:'Others';
   const names=list.map(c=>`${c.nm}${c.wd?' ('+c.wd+')':''}`);
   toast(`${lbl}: ${names.slice(0,3).join(' · ')}${names.length>3?' +'+(names.length-3):''}`);
+}
+
+/* ═══════════════ IMPORT (📥 from Google Sheet / Excel / CSV) ═══════════════ */
+let impRows=[],impHasHeader=true,impMap=[],impDefaultType='',impSkipDup=true,impStep=1,impWorkbook=null,impSheetNames=[],impPending=[];
+
+const FIELD_OPTS=[['','— Skip —'],['nm','Patient Name'],['hn','HN'],['wd','Ward'],['dx','Diagnosis'],['ty','Category'],['fu','Follow-up Date'],['firstVisit','First Visit (optional)'],['status','Status (Active/Discharged)'],['st','VIP (yes/no)'],['nt','Notes']];
+const GUESS_KEYS=[['nm',['name','ชื่อ','patient','คนไข้','pt ']],['hn',['hn']],['wd',['ward','ตึก','ห้อง','room','bed','หอ']],['dx',['dx','diag','โรค','วินิจฉัย']],['ty',['type','category','ประเภท']],['fu',['fu','follow','นัด','appointment']],['firstVisit',['first visit','date added','วันที่มา','admit','วันแรก']],['status',['status','สถานะ']],['st',['vip']],['nt',['note','remark','หมายเหตุ']]];
+function guessField(header){
+  const h=(header||'').toString().toLowerCase();
+  for(const[f,keys]of GUESS_KEYS)if(keys.some(k=>h.includes(k)))return f;
+  return'';
+}
+// Full clinical terms that should resolve to an abbreviated category code
+const TYPE_ALIASES={'PO':['prosthesis','orthosis','prostheticorthotic'],'ICU':['intensivecareunit','criticalcare'],'PT':['physicaltherapy']};
+function matchType(v){
+  if(!v)return null;
+  const norm=x=>String(x).trim().toLowerCase().replace(/[^a-z0-9ก-๙]/g,'');
+  const s=norm(v);if(!s)return null;
+  let hit=TYPES.find(t=>norm(t)===s); // exact match, punctuation/whitespace-insensitive ("P.O." === "PO", "Postop" === "Post op")
+  if(hit)return hit;
+  // alias check — full clinical terms for short abbreviation codes ("Prosthesis" -> "PO"). Length guard avoids short false-positive substrings.
+  hit=TYPES.find(t=>(TYPE_ALIASES[t]||[]).some(a=>{const an=norm(a);return an.length>=6&&s.includes(an)}));
+  if(hit)return hit;
+  // fuzzy fallback only for longer category names AND longer input — avoids short codes/garbage ("PO", "P", "O") false-matching substrings
+  // (this is why "PO" never gets confused with "Post op" — PO is only ever matched exactly or via its own alias list)
+  hit=TYPES.find(t=>{const tn=norm(t);return tn.length>=4&&s.length>=4&&(s.includes(tn)||tn.includes(s))});
+  return hit||null;
+}
+function isTruthy(v){return/^(y|yes|true|1|vip|✓|✔|x|จริง|ใช่)$/i.test(String(v||'').trim())}
+// Recognizes sheet status values that mean the case is already discharged/closed
+// (e.g. "End", "DC", "Discharged", "จำหน่าย") — anything else (IPD/OPD/Active/blank) stays active.
+function isDischargedStatus(v){
+  return/^(end|dc|discharge|discharged|closed|complete|completed|จำหน่าย|เสร็จ|จบ)/i.test(String(v||'').trim());
+}
+function impIso(y,m,d){if(!y||m<1||m>12||d<1||d>31)return'';const pad=x=>String(x).padStart(2,'0');return`${y}-${pad(m)}-${pad(d)}`}
+function parseDateFlexible(v){
+  if(v==null||v==='')return'';
+  if(v instanceof Date&&!isNaN(v)||Object.prototype.toString.call(v)==='[object Date]'&&!isNaN(v))return localDateStr(v);
+  const s=String(v).trim();let m;
+  if(m=s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/)){let y=+m[1],mo=+m[2],d=+m[3];if(y>2400)y-=543;return impIso(y,mo,d)}
+  if(m=s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})$/)){let d=+m[1],mo=+m[2],y=+m[3];if(y<100)y+=2000;if(y>2400)y-=543;return impIso(y,mo,d)}
+  return'';
+}
+function parseCSV(text){
+  const rows=[];let row=[],cur='',inQ=false;
+  for(let i=0;i<text.length;i++){
+    const c=text[i],n=text[i+1];
+    if(inQ){
+      if(c==='"'&&n==='"'){cur+='"';i++}
+      else if(c==='"')inQ=false;
+      else cur+=c;
+    }else{
+      if(c==='"')inQ=true;
+      else if(c===','){row.push(cur);cur=''}
+      else if(c==='\n'||c==='\r'){if(c==='\r'&&n==='\n')i++;row.push(cur);cur='';if(row.some(x=>x.trim()!==''))rows.push(row);row=[]}
+      else cur+=c;
+    }
+  }
+  if(cur!==''||row.length){row.push(cur);if(row.some(x=>x.trim()!==''))rows.push(row)}
+  return rows;
+}
+function parsePaste(text){
+  const lines=text.split(/\r\n|\n|\r/).filter(l=>l.trim()!=='');
+  const rows=lines.map(l=>l.split('\t'));
+  if(rows.some(r=>r.length>1))return rows;
+  return parseCSV(text); // fallback: pasted text looks comma-separated (CSV), not tab-separated
+}
+function loadXLSXLib(){
+  if(window.XLSX)return Promise.resolve();
+  return new Promise((res,rej)=>{
+    const el=document.createElement('script');
+    el.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    el.onload=()=>res();el.onerror=()=>rej(new Error('Failed to load Excel parser'));
+    document.head.appendChild(el);
+  });
+}
+
+function openImport(){
+  impRows=[];impHasHeader=true;impMap=[];impDefaultType='';impSkipDup=true;impStep=1;impWorkbook=null;impSheetNames=[];impPending=[];
+  renderImportStep();open('ov-import');
+}
+function renderImportStep(){
+  if(impStep===1)renderImportSource();
+  else if(impStep===2)renderImportMap();
+  else renderImportPreview();
+}
+
+function renderImportSource(){
+  set('imp-body',`
+   <div style="font-size:12px;color:var(--t3);margin-bottom:10px">Paste rows copied from Google Sheets or Excel, or upload a file. Cell formatting (dropdowns, colors) doesn't matter — only the text is imported.</div>
+   <textarea class="fta" id="imp-paste" placeholder="Paste here (Ctrl+V / Cmd+V)... select your rows in the sheet first, including the header row if you have one" style="min-height:130px;font-family:ui-monospace,monospace;font-size:12px"></textarea>
+   <div style="display:flex;align-items:center;gap:8px;margin:12px 0;color:var(--t3);font-size:12px"><div style="flex:1;height:1px;background:var(--bo)"></div>or<div style="flex:1;height:1px;background:var(--bo)"></div></div>
+   <button class="expbtn" style="width:100%;justify-content:center;box-sizing:border-box;margin-bottom:6px" onclick="document.getElementById('imp-file').click()">📁 Upload CSV / Excel file</button>
+   <input type="file" id="imp-file" accept=".csv,.xlsx,.xls" style="display:none" onchange="handleImportFile(event)">
+   <div id="imp-file-name" style="font-size:11px;color:var(--t3);text-align:center;min-height:16px"></div>
+   <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--t2);margin:12px 0"><input type="checkbox" id="imp-header-chk" class="set-chk" checked> First row is column headers</label>
+   <button class="sbmt" onclick="importGoToMap()">Next: Map Columns →</button>
+  `);
+}
+async function handleImportFile(e){
+  const f=e.target.files&&e.target.files[0];if(!f)return;
+  const nameEl=document.getElementById('imp-file-name');
+  nameEl.textContent='Reading '+f.name+'...';
+  const ext=f.name.split('.').pop().toLowerCase();
+  try{
+    if(ext==='csv'){
+      impRows=parseCSV(await f.text());
+      nameEl.textContent=`✅ Loaded ${f.name} (${impRows.length} rows)`;
+    }else{
+      await loadXLSXLib();
+      const buf=await f.arrayBuffer();
+      const wb=XLSX.read(buf,{type:'array',cellDates:true});
+      impWorkbook=wb;
+      if(wb.SheetNames.length>1){impSheetNames=wb.SheetNames;renderImportSheetPicker(f.name);return}
+      impRows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,raw:true,defval:''});
+      nameEl.textContent=`✅ Loaded ${f.name} (${impRows.length} rows)`;
+    }
+    const pa=document.getElementById('imp-paste');if(pa)pa.value='';
+  }catch(err){nameEl.textContent='⚠ Could not read file';console.error(err)}
+}
+function renderImportSheetPicker(fname){
+  const nameEl=document.getElementById('imp-file-name');
+  nameEl.innerHTML=`Loaded ${esc(fname)} — sheet: <select onchange="pickImportSheet(this.value)" style="font-size:11px">${impSheetNames.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('')}</select>`;
+  pickImportSheet(impSheetNames[0]);
+}
+function pickImportSheet(name){
+  impRows=XLSX.utils.sheet_to_json(impWorkbook.Sheets[name],{header:1,raw:true,defval:''});
+  const pa=document.getElementById('imp-paste');if(pa)pa.value='';
+}
+function importGoToMap(){
+  impHasHeader=document.getElementById('imp-header-chk').checked;
+  if(!impRows.length){
+    const txt=document.getElementById('imp-paste').value;
+    if(!txt.trim())return toast('⚠ Paste some rows or upload a file');
+    impRows=parsePaste(txt);
+  }
+  if(!impRows.length)return toast('⚠ No rows detected');
+  impMap=[];impStep=2;renderImportStep();
+}
+function renderImportMap(){
+  const headerRow=impHasHeader?impRows[0]:null;
+  const dataStart=impHasHeader?1:0;
+  const sample=impRows[dataStart]||[];
+  const colCount=Math.max(0,...impRows.map(r=>r.length));
+  if(!impMap.length)impMap=Array.from({length:colCount},(_,i)=>guessField(headerRow?headerRow[i]:''));
+  let h=`<div style="font-size:12px;color:var(--t3);margin-bottom:10px">${impRows.length-dataStart} data row(s) detected. Match each column to a field:</div><div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px">`;
+  for(let i=0;i<colCount;i++){
+    const label=headerRow?(headerRow[i]||'Column '+(i+1)):'Column '+(i+1);
+    const ex=sample[i]!==undefined&&sample[i]!==''?String(sample[i]).slice(0,26):'–';
+    h+=`<div style="background:var(--s2);border-radius:10px;padding:9px 11px">
+      <div style="font-size:12px;font-weight:600;margin-bottom:2px">${esc(String(label))}</div>
+      <div style="font-size:11px;color:var(--t3);margin-bottom:6px">e.g. "${esc(ex)}"</div>
+      <select class="fsl" style="padding:7px 9px;font-size:13px" onchange="impMap[${i}]=this.value">
+        ${FIELD_OPTS.map(([v,l])=>`<option value="${v}" ${impMap[i]===v?'selected':''}>${l}</option>`).join('')}
+      </select>
+    </div>`;
+  }
+  h+=`</div>
+  <div class="fg"><label class="fl">Default category (for rows with no / unmatched category)</label>
+   <select class="fsl" id="imp-def-type">${TYPES.map(t=>`<option ${(impDefaultType||TYPES[0])===t?'selected':''}>${t}</option>`).join('')}</select>
+  </div>
+  <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--t2);margin:12px 0"><input type="checkbox" id="imp-skipdup-chk" class="set-chk" ${impSkipDup?'checked':''}> Skip rows that match an existing case (by name)</label>
+  <div style="display:flex;gap:8px">
+   <button class="ab agr" style="flex:1" onclick="impStep=1;renderImportStep()">← Back</button>
+   <button class="sbmt" style="flex:2;margin-top:0" onclick="importGoToPreview()">Preview →</button>
+  </div>`;
+  set('imp-body',h);
+}
+function importGoToPreview(){
+  impDefaultType=document.getElementById('imp-def-type').value;
+  impSkipDup=document.getElementById('imp-skipdup-chk').checked;
+  if(impMap.indexOf('nm')===-1)return toast('⚠ Map at least the Patient Name column');
+  impStep=3;renderImportStep();
+}
+function buildImportCases(){
+  const dataStart=impHasHeader?1:0;
+  const existingNames=new Set(load().map(c=>(c.nm||'').trim().toLowerCase()).filter(Boolean));
+  const idx=f=>impMap.indexOf(f);
+  const nameIdx=idx('nm'),hnIdx=idx('hn'),wdIdx=idx('wd'),dxIdx=idx('dx'),tyIdx=idx('ty'),fuIdx=idx('fu'),fvIdx=idx('firstVisit'),stIdx=idx('st'),ntIdx=idx('nt'),statusIdx=idx('status');
+  const out=[];let skippedNoName=0,skippedDup=0;
+  for(let r=dataStart;r<impRows.length;r++){
+    const row=impRows[r];if(!row||!row.some(x=>String(x||'').trim()!==''))continue;
+    const nm=nameIdx>=0?String(row[nameIdx]||'').trim():'';
+    if(!nm){skippedNoName++;continue}
+    if(impSkipDup&&existingNames.has(nm.toLowerCase())){skippedDup++;continue}
+    const ty=(tyIdx>=0?matchType(row[tyIdx]):null)||impDefaultType||TYPES[0];
+    const fu=fuIdx>=0?parseDateFlexible(row[fuIdx]):'';
+    const fv=fvIdx>=0?(parseDateFlexible(row[fvIdx])||fu||today()):(fu||today());
+    const dcFlag=statusIdx>=0?isDischargedStatus(row[statusIdx]):false;
+    out.push({
+      id:uid_(),nm,
+      hn:hnIdx>=0?String(row[hnIdx]||'').trim():'',
+      wd:wdIdx>=0?String(row[wdIdx]||'').trim():'',
+      dx:dxIdx>=0?String(row[dxIdx]||'').trim():'',
+      ty,fu,nt:ntIdx>=0?String(row[ntIdx]||'').trim():'',
+      firstVisit:fv,st:stIdx>=0?isTruthy(row[stIdx]):false,
+      dc:dcFlag,dcDate:dcFlag?(fu||today()):null,opd:false,
+      created:new Date().toISOString(),upd:new Date().toISOString()
+    });
+  }
+  return{out,skippedNoName,skippedDup};
+}
+function renderImportPreview(){
+  const{out,skippedNoName,skippedDup}=buildImportCases();
+  impPending=out;
+  const dcCount=out.filter(c=>c.dc).length;
+  let h=`<div style="font-size:13px;margin-bottom:8px">Ready to import <b>${out.length}</b> case(s)${dcCount?` — <span style="color:var(--t3)">${dcCount} will import as already discharged</span>`:''}.</div>`;
+  if(skippedNoName)h+=`<div style="font-size:12px;color:var(--t3);margin-bottom:3px">⚠ ${skippedNoName} row(s) skipped — no name</div>`;
+  if(skippedDup)h+=`<div style="font-size:12px;color:var(--t3);margin-bottom:8px">⚠ ${skippedDup} row(s) skipped — name already exists</div>`;
+  if(out.length){
+    h+=`<div style="overflow-x:auto;margin-bottom:12px"><table class="stbl" style="min-width:520px"><thead><tr><th>Name</th><th>HN</th><th>Ward</th><th>Category</th><th>F/U</th><th>Status</th></tr></thead><tbody>`;
+    out.slice(0,8).forEach(c=>{h+=`<tr><td>${esc(c.nm)}</td><td>${esc(c.hn)}</td><td>${esc(c.wd)}</td><td>${esc(c.ty)}</td><td>${c.fu?fd(c.fu):'–'}</td><td>${c.dc?'🏠 DC':'Active'}</td></tr>`});
+    h+=`</tbody></table></div>`;
+    if(out.length>8)h+=`<div style="font-size:11px;color:var(--t3);margin-bottom:10px">…and ${out.length-8} more</div>`;
+  }
+  h+=`<div style="display:flex;gap:8px">
+    <button class="ab agr" style="flex:1" onclick="impStep=2;renderImportStep()">← Back</button>
+    <button class="sbmt" style="flex:2;margin-top:0" ${out.length?'':'disabled'} onclick="runImport()">✅ Import ${out.length} Case(s)</button>
+  </div>`;
+  set('imp-body',h);
+}
+async function runImport(){
+  if(!impPending||!impPending.length)return;
+  const btn=document.querySelector('#imp-body .sbmt');if(btn){btn.disabled=true;btn.textContent='Importing...'}
+  for(const c of impPending)await window._saveToCloud(c);
+  cls('ov-import');
+  toast(`✅ Imported ${impPending.length} case(s)`);
+  go('done');
 }
 
 /* ═══════════════ INIT new features ═══════════════ */
