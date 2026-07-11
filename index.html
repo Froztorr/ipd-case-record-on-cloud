@@ -949,13 +949,6 @@ window._clearAllFromCloud=async()=>{
 };
 </script>
 
-Here is the revised code for your `index.html` file.
-
-I have created a clean 2D schematic look based on your drawing using HTML5 Canvas. A new tab named **"📊 Visualize"** has been added right after "All Cases". It scans your active patients, parses their ward numbers to determine which building and floor they belong to, and dynamically renders the layout showing exactly how many patients are on each floor.
-
-Replace your entire script section starting from `<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/...` down to the bottom of the file with this implementation:
-
-```html
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script>
 let tab='today',fuId=null,pie=null;
@@ -964,9 +957,10 @@ let doneFilter='All',doneSearch='';
 let stFrom='',stTo='';
 
 const TYPES=['Stroke','Chronic med','Post op','Swallow','Cardiac','Pulmo','PO','Burn','ICU','Prehab','Hip fast'];
-const TC={Stroke:'tc-s','Chronic med':'tc-c','Post op':'tc-p',Swallow:'tc-sw',Cardiac:'tc-ca',Pulmo:'tc-pu',PO:'tc-po',Burn:'tc-b',ICU:'tc-i',Prehab:'tc-pr','Hip fast':'#5ac8fa'};
+const TC={Stroke:'tc-s','Chronic med':'tc-c','Post op':'tc-p',Swallow:'tc-sw',Cardiac:'tc-ca',Pulmo:'tc-pu',PO:'tc-po',Burn:'tc-b',ICU:'tc-i',Prehab:'tc-pr','Hip fast':'tc-h'};
 const TK={Stroke:'#ff7eb3','Chronic med':'#6c6fff','Post op':'#3ecf8e',Swallow:'#f5a623',Cardiac:'#ff6b6b',Pulmo:'#64d2ff',PO:'#bf94ff',Burn:'#ff9f0a',ICU:'#ff453a',Prehab:'#30d158','Hip fast':'#5ac8fa'};
 
+// Data — always read from in-memory cache populated by Firestore listener
 function load(){return window._cases||[]}
 function esc(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}
 function uid_(){return Math.random().toString(36).slice(2,9)+Date.now().toString(36)}
@@ -987,16 +981,19 @@ const sortW = (arr) => arr.sort((a,b) => {
   const p = s => {
     if(!s) return {t:3, v:0, o:''};
     const w = String(s).split('/')[0].trim().toLowerCase();
+    
+    // Use startsWith to catch Micu1, Micu2, CCU, ICCU etc.
     if(w.startsWith('ccu')||w.startsWith('iccu')) return {t:0, v:4, o:w};
     if(w.startsWith('micu')) return {t:0, v:10, o:w};
     if(w.startsWith('สก')) return {t:1, v:parseInt(w.replace('สก',''))||0, o:w};
+    
     const n = parseInt(w);
     return !isNaN(n) ? {t:0, v:n, o:w} : {t:2, v:0, o:w};
   };
   const wa=p(a.wd), wb=p(b.wd);
-  if(wa.t!==wb.t) return wa.t-wb.t;
-  if(wa.t<2 && wa.v!==wb.v) return wb.v-wa.v;
-  return wa.o.localeCompare(wb.o);
+  if(wa.t!==wb.t) return wa.t-wb.t; // Order: Normal Numbers (0) -> สก (1) -> Others (2) -> Empty (3)
+  if(wa.t<2 && wa.v!==wb.v) return wb.v-wa.v; // Descending sort (highest to lowest)
+  return wa.o.localeCompare(wb.o); // Alphabetical tie-breaker
 });
 
 function card(c){
@@ -1032,6 +1029,7 @@ function chips(types,cur,fn){
   return`<div class="fw" data-chipfn="${fn}">${['All',...types].map(t=>`<button class="chip${cur===t?' on':''}" data-val="${t.replace(/"/g,'&quot;')}">${t}</button>`).join('')}</div>`;
 }
 
+// Global chip click handler — avoids inline onclick with spaces in values
 document.addEventListener('click',e=>{
   const btn=e.target.closest('[data-val]');
   if(!btn)return;
@@ -1080,11 +1078,13 @@ function rImp(){
 /* ===== ALL CASES ===== */
 function setDoneFilter(f){doneFilter=f;rDoneChips();rDoneCards()}
 function rDone(){
+  // Render controls once — search input stays in DOM, never recreated
   set('v-done',`
     <div class="sw"><span class="sico">🔍</span><input class="si" id="done-search-input" placeholder="Search..." type="search" autocomplete="off"></div>
     <div id="done-chips"></div>
     <div id="done-cards"></div>
   `);
+  // Restore search value without triggering re-render
   const si=document.getElementById('done-search-input');
   if(si){si.value=doneSearch;si.addEventListener('input',e=>{doneSearch=e.target.value;rDoneCards()})}
   rDoneChips();
@@ -1108,157 +1108,6 @@ function rDoneCards(){
   set('done-cards',h);
 }
 
-/* ===== VISUALIZE (BUILDINGS MAP) ===== */
-function rVisualize() {
-  set('v-done', `
-    <div style="background:var(--s); border:1px solid var(--bo); border-radius:12px; padding:16px; margin-bottom:12px; text-align:center;">
-      <div style="font-size:14px; font-weight:700; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
-        <span>Building Occupancy Map</span>
-        <span style="font-size:11px; color:var(--t3); font-weight:400;">*Active cases parsed by Ward</span>
-      </div>
-      <div style="width:100%; overflow-x:auto; background:var(--bg); padding:10px 0; border-radius:8px;">
-        <canvas id="buildingCanvas" width="700" height="420" style="display:block; margin:0 auto; background:var(--bg);"></canvas>
-      </div>
-      <div id="vis-details" style="margin-top:16px; text-align:left; font-size:12px; display:grid; grid-template-columns:1fr 1fr; gap:10px;"></div>
-    </div>
-  `);
-
-  const canvas = document.getElementById('buildingCanvas');
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
-  
-  // Data extraction setup
-  const cases = load().filter(c => !c.dc);
-  const dataB1 = {}, dataB2 = {};
-  let othersCount = 0;
-
-  cases.forEach(c => {
-    if (!c.wd) { othersCount++; return; }
-    const w = String(c.wd).split('/')[0].trim().toLowerCase();
-    if (w.startsWith('สก')) {
-      const fl = parseInt(w.replace('สก', ''));
-      if (!isNaN(fl) && fl >= 1 && fl <= 20) dataB1[fl] = (dataB1[fl] || 0) + 1;
-      else othersCount++;
-    } else {
-      const fl = parseInt(w);
-      if (!isNaN(fl) && fl >= 1 && fl <= 28) dataB2[fl] = (dataB2[fl] || 0) + 1;
-      else othersCount++;
-    }
-  });
-
-  // Theme checking logic
-  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
-  const strokeColor = isLight ? '#1a1d27' : '#ffffff';
-  const labelColor = isLight ? '#555870' : '#8b8fa8';
-  const bridgeColor = isLight ? '#d6835c' : '#6c6fff';
-  const highlightColor = 'rgba(62,207,142,0.25)';
-
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.lineWidth = 4;
-  ctx.strokeStyle = strokeColor;
-  ctx.fillStyle = strokeColor;
-
-  // 1. Building Phumisiri (ภูมิสิริ) - Left (28 Floors)
-  ctx.strokeRect(60, 40, 180, 340);
-  ctx.font = 'bold 15px system-ui';
-  ctx.fillText('ภูมิสิริ (28 ชั้น)', 60, 30);
-
-  // 2. Building SK (สก.) - Middle (20 Floors)
-  ctx.strokeRect(320, 120, 160, 260);
-  ctx.fillText('สก. (20 ชั้น)', 320, 110);
-
-  // 3. Building Others - Right (Small)
-  ctx.strokeRect(540, 280, 130, 100);
-  ctx.fillText('others', 540, 270);
-  if (othersCount > 0) {
-    ctx.fillStyle = highlightColor;
-    ctx.fillRect(542, 282, 126, 96);
-    ctx.fillStyle = strokeColor;
-    ctx.font = 'bold 14px system-ui';
-    ctx.fillText(`${othersCount} Pts`, 580, 335);
-  }
-
-  // 4. Connecting Bridge (7th Floor of Left to 8th Floor of Right)
-  // Biomechanically scaled line markers based on height mappings
-  const b2Top = 40, b2Bot = 380, b2H = 340; 
-  const b1Top = 120, b1Bot = 380, b1H = 260;
-  
-  const yLeft7 = b2Bot - (7 / 28) * b2H;
-  const yRight8 = b1Bot - (8 / 20) * b1H;
-
-  ctx.beginPath();
-  ctx.lineWidth = 3;
-  ctx.strokeStyle = bridgeColor;
-  ctx.moveTo(240, yLeft7);
-  ctx.lineTo(320, yRight8);
-  ctx.stroke();
-
-  // Bridge Labels
-  ctx.fillStyle = bridgeColor;
-  ctx.font = '10px system-ui';
-  ctx.fillText('ชั้น 7', 208, yLeft7 + 4);
-  ctx.fillText('ชั้น 8', 326, yRight8 + 4);
-
-  // 5. Draw dynamically populated floor slots inside the layout
-  ctx.lineWidth = 2;
-  ctx.strokeStyle = strokeColor;
-  ctx.fillStyle = strokeColor;
-
-  // Draw Specific highlighted floor indicators (Floor 1, 2, 3 for Left)
-  [1, 2, 3].forEach((f, i) => {
-    const y = b2Bot - 35 - (i * 30);
-    ctx.strokeRect(75, y, 150, 22);
-    if (dataB2[f]) {
-      ctx.fillStyle = highlightColor; ctx.fillRect(76, y+1, 148, 20); ctx.fillStyle = strokeColor;
-      ctx.font = 'bold 11px system-ui'; ctx.fillText(`Fl ${f}: ${dataB2[f]} Pts`, 85, y + 15);
-    } else {
-      ctx.font = '10px system-ui'; ctx.fillStyle = labelColor; ctx.fillText(`ชั้น ${f}`, 85, y + 15); ctx.fillStyle = strokeColor;
-    }
-  });
-
-  // Top Floor 28 label indicator
-  const y28 = b2Top + 15;
-  ctx.strokeRect(75, y28, 150, 22);
-  if (dataB2[28]) {
-    ctx.fillStyle = highlightColor; ctx.fillRect(76, y28+1, 148, 20); ctx.fillStyle = strokeColor;
-    ctx.font = 'bold 11px system-ui'; ctx.fillText(`Fl 28: ${dataB2[28]} Pts`, 85, y28 + 15);
-  } else {
-    ctx.font = '10px system-ui'; ctx.fillStyle = labelColor; ctx.fillText('ชั้น 28', 85, y28 + 15); ctx.fillStyle = strokeColor;
-  }
-
-  // Draw Specific floor indicators (Floor 1, 2 for Middle)
-  [1, 2].forEach((f, i) => {
-    const y = b1Bot - 35 - (i * 30);
-    ctx.strokeRect(335, y, 130, 22);
-    if (dataB1[f]) {
-      ctx.fillStyle = highlightColor; ctx.fillRect(336, y+1, 128, 20); ctx.fillStyle = strokeColor;
-      ctx.font = 'bold 11px system-ui'; ctx.fillText(`Fl ${f}: ${dataB1[f]} Pts`, 345, y + 15);
-    } else {
-      ctx.font = '10px system-ui'; ctx.fillStyle = labelColor; ctx.fillText(`ชั้น ${f}`, 345, y + 15); ctx.fillStyle = strokeColor;
-    }
-  });
-
-  // Top Floor 20 label indicator
-  const y20 = b1Top + 15;
-  ctx.strokeRect(335, y20, 130, 22);
-  if (dataB1[20]) {
-    ctx.fillStyle = highlightColor; ctx.fillRect(336, y20+1, 128, 20); ctx.fillStyle = strokeColor;
-    ctx.font = 'bold 11px system-ui'; ctx.fillText(`Fl 20: ${dataB1[20]} Pts`, 345, y20 + 15);
-  } else {
-    ctx.font = '10px system-ui'; ctx.fillStyle = labelColor; ctx.fillText('ชั้น 20', 345, y20 + 15); ctx.fillStyle = strokeColor;
-  }
-
-  // Generate detailed textual logs below canvas frame
-  let dHtml = `<div style="background:var(--s2); padding:8px; border-radius:6px;"><strong>🏢 ภูมิสิริ:</strong><br>`;
-  Object.keys(dataB2).sort((a,b)=>b-a).forEach(f => { dHtml += `• ชั้น ${f}: ${dataB2[f]} ราย<br>`; });
-  if(!Object.keys(dataB2).length) dHtml += `ไม่มีผู้ป่วยในตึกนี้<br>`;
-  dHtml += `</div><div style="background:var(--s2); padding:8px; border-radius:6px;"><strong>🏢 สก.:</strong><br>`;
-  Object.keys(dataB1).sort((a,b)=>b-a).forEach(f => { dHtml += `• ชั้น ${f}: ${dataB1[f]} ราย<br>`; });
-  if(!Object.keys(dataB1).length) dHtml += `ไม่มีผู้ป่วยในตึกนี้<br>`;
-  dHtml += `</div>`;
-  set('vis-details', dHtml);
-}
-
 /* ===== DISCHARGED ===== */
 function setDcFilter(f){dcFilter=f;rDcChips();rDcCards()}
 function dcApplyDate(){
@@ -1267,6 +1116,7 @@ function dcApplyDate(){
   rDcCards();
 }
 function rDc(){
+  // Render controls once — inputs stay in DOM
   set('v-dc',`
     <div class="sw"><span class="sico">🔍</span><input class="si" id="dc-search-input" placeholder="Search discharged..." type="search" autocomplete="off"></div>
     <div id="dc-chips"></div>
@@ -1312,6 +1162,7 @@ function rStats(){
   if(!stFrom)stFrom=addD(t,-30);
   if(!stTo)stTo=t;
   let h=`<div class="dr"><label>From</label><input class="fi" type="date" value="${stFrom}" onchange="stFrom=this.value;rStats()"><label>To</label><input class="fi" type="date" value="${stTo}" onchange="stTo=this.value;rStats()"></div>`;
+  // Count by firstVisit date — excludes follow-up visits for accurate stats
   const cases=load().filter(c=>{
     const d=c.firstVisit||(c.created||'').split('T')[0];
     return d>=stFrom&&d<=stTo;
@@ -1350,13 +1201,11 @@ window.badges=badges;
 /* ===== TAB ===== */
 function go(t){
   tab=t;
-  // Make sure the active CSS states adjust dynamically when tab routes swap
   ['today','imp','done','dc','vip','stats'].forEach(x=>{
-    const tabEl = document.getElementById('t-'+x);
-    const viewEl = document.getElementById('v-'+x);
-    if(tabEl) tabEl.classList.toggle('on', x===t || (t==='visualize' && x==='done'));
-    if(viewEl) viewEl.classList.toggle('on', x===t || (t==='visualize' && x==='done'));
+    document.getElementById('t-'+x).classList.toggle('on',x===t);
+    document.getElementById('v-'+x).classList.toggle('on',x===t);
   });
+  // Always full render on tab switch — scaffold needs to be rebuilt
   fullRender();
 }
 
@@ -1364,7 +1213,6 @@ function fullRender(){
   if(tab==='today')rToday();
   else if(tab==='imp')rImp();
   else if(tab==='done')rDone();
-  else if(tab==='visualize')rVisualize();
   else if(tab==='dc')rDc();
   else if(tab==='vip')rVip();
   else rStats();
@@ -1372,13 +1220,13 @@ function fullRender(){
 }
 
 function render(){
+  // Smart render — only update cards if already on done/dc (avoids destroying search input)
   if(tab==='today')rToday();
   else if(tab==='imp')rImp();
   else if(tab==='done'){
     if(document.getElementById('done-cards'))rDoneCards();
     else rDone();
   }
-  else if(tab==='visualize')rVisualize();
   else if(tab==='dc'){
     if(document.getElementById('dc-cards'))rDcCards();
     else rDc();
@@ -1388,20 +1236,6 @@ function render(){
   badges();
 }
 window.render=render;
-
-/* Inject the Visualize Tab markup into HTML head initialization safely */
-document.addEventListener('DOMContentLoaded', () => {
-  const tabsContainer = document.querySelector('.tabs');
-  if(tabsContainer && !document.getElementById('t-visualize')) {
-    const doneTab = document.getElementById('t-done');
-    const visBtn = document.createElement('button');
-    visBtn.className = 'tab';
-    visBtn.id = 't-visualize';
-    visBtn.innerHTML = '📊 Visualize';
-    visBtn.onclick = () => go('visualize');
-    doneTab.parentNode.insertBefore(visBtn, doneTab.nextSibling);
-  }
-});
 
 /* ===== DETAIL ===== */
 function openDet(id){
@@ -1447,6 +1281,7 @@ function toggleFormOpd(){
 
 function setFormFlags(vip,opd){
   _formVip=false;_formOpd=false;
+  // Reset both first then apply
   const vb=document.getElementById('f-vip-btn');
   const ob=document.getElementById('f-opd-btn');
   if(vb){vb.style.background='var(--s2)';vb.style.borderColor='var(--bo)';vb.style.color='var(--t2)';vb.innerHTML='<span>☆</span><span>VIP</span>'}
@@ -1490,6 +1325,7 @@ async function saveCase(){
     dx:document.getElementById('fdx').value.trim(),
     fu:document.getElementById('ffu').value,
     nt:document.getElementById('fnt').value.trim(),
+    // Preserve firstVisit — only set on new case, editable but not overwritten by follow-up
     firstVisit:document.getElementById('fvisit').value||existing.firstVisit||today(),
     st:_formVip,
     dc:existing.dc||false,
@@ -1519,6 +1355,7 @@ function qdToday(id){document.getElementById(id).value=localDateStr(new Date())}
 /* ===== ACTIONS ===== */
 async function starFromDet(id){
   await star(id);
+  // Update just the star button text in open detail without full re-render
   const c=load().find(x=>x.id===id);
   const btn=document.querySelector('#det-body .ab.agr');
   if(btn&&c)btn.textContent=c.st?'☆ Remove VIP':'⭐ Mark as VIP';
@@ -1592,17 +1429,21 @@ function set(id,h){const e=document.getElementById(id);if(e)e.innerHTML=h}
 function open(id){document.getElementById(id).classList.add('on')}
 function cls(id){
   const el=document.getElementById(id);if(!el)return;
+  // Blur focused input so keyboard dismisses cleanly
   const focused=el.querySelector('input:focus,textarea:focus,select:focus');
   if(focused)focused.blur();
   el.classList.remove('on');
+  // After keyboard closes iOS shifts viewport — reset scroll to fix touch offset
   setTimeout(()=>{window.scrollTo(0,0);document.body.scrollTop=0},350);
 }
 function bkd(e,id){if(e.target===document.getElementById(id))cls(id)}
 
+// Fix iOS visualViewport shift when keyboard opens/closes
 if(window.visualViewport){
   let _lastVH=window.visualViewport.height;
   window.visualViewport.addEventListener('resize',()=>{
     const newVH=window.visualViewport.height;
+    // Keyboard just closed (viewport got taller)
     if(newVH>_lastVH&&document.activeElement.tagName!=='INPUT'&&document.activeElement.tagName!=='TEXTAREA'){
       setTimeout(()=>{window.scrollTo(0,0);document.body.scrollTop=0},100);
     }
@@ -1765,6 +1606,8 @@ async function adminChangePw(){
 }
 
 /* ── Battery optimizations ── */
+
+// 1. Pause video + flush queue when backgrounded, re-fetch on foreground
 document.addEventListener('visibilitychange',()=>{
   if(document.hidden){
     clearTimeout(_syncTimer);
@@ -1787,6 +1630,7 @@ document.addEventListener('visibilitychange',()=>{
   }
 });
 
+// 2. Pause video when it scrolls off screen, resume when visible
 const _iObs=new IntersectionObserver(entries=>{
   entries.forEach(e=>{
     if(e.target.tagName==='VIDEO'){
@@ -1800,6 +1644,7 @@ new MutationObserver(()=>{
 }).observe(document.body,{childList:true,subtree:true});
 document.querySelectorAll('video.granny').forEach(v=>_iObs.observe(v));
 
+// 3. Throttle render to one per animation frame — prevents redundant repaints
 const _rawRender=window.render;
 let _rPending=false;
 window.render=()=>{
@@ -1810,5 +1655,3 @@ window.render=()=>{
 </script>
 </body>
 </html>
-
-```
