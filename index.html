@@ -217,6 +217,43 @@ body {
 .opd-btn:active{transform:scale(1.25)}
 /* DISCLAIMER */
 .disclaimer{position:fixed;bottom:calc(var(--saf-b) + 2px);left:0;right:0;text-align:right;padding:2px 14px;font-size:9px;color:var(--t3);pointer-events:none;z-index:55}
+
+/* SETTINGS SHEET */
+.set-row{display:flex;align-items:center;justify-content:space-between;padding:12px 4px;border-bottom:1px solid var(--bo)}
+.set-row:last-child{border-bottom:none}
+.set-chk{width:21px;height:21px;accent-color:var(--a);cursor:pointer}
+/* DATE INPUT dd/mm/yyyy OVERLAY (desktop) */
+.dwrap{position:relative;display:block;width:100%}
+.dr .dwrap{flex:1;min-width:100px;width:auto}
+.dwrap>input{width:100%}
+.dwrap.masked>input{color:transparent}
+.dwrap.masked>input:focus{color:var(--t)}
+.dwrap.masked>input:focus~.dov{display:none}
+.dov{position:absolute;left:13px;top:50%;transform:translateY(-50%);pointer-events:none;font-size:15px;color:var(--t)}
+.dr .dov{left:11px;font-size:13px}
+input[type=date]{cursor:pointer}
+/* REMINDER */
+.rem-item{display:flex;align-items:flex-start;gap:10px;padding:8px 2px;border-bottom:1px solid var(--bo)}
+.rem-item:last-child{border-bottom:none}
+.rem-tick{width:20px;height:20px;border-radius:50%;border:2px solid var(--t3);background:none;cursor:pointer;flex-shrink:0;margin-top:1px;color:#fff;font-size:11px;display:flex;align-items:center;justify-content:center;padding:0;transition:all .12s}
+.rem-tick:active{transform:scale(1.15)}
+.rem-tick.done{background:var(--a);border-color:var(--a)}
+.rem-txt{font-size:14px;line-height:1.45;flex:1;word-break:break-word}
+.rem-txt.done{color:var(--t3);text-decoration:line-through}
+/* VISUALIZE */
+.vz-wrap{display:flex;align-items:flex-end;margin-top:6px;padding-bottom:10px}
+.vz-b{display:flex;flex-direction:column;min-width:0}
+.vz-name{font-size:11px;font-weight:700;text-align:center;margin-bottom:4px;color:var(--t2);white-space:nowrap}
+.vz-body{border:1.5px solid var(--bo2);border-bottom:2px solid var(--bo2);border-radius:7px 7px 0 0;overflow:hidden;background:var(--s)}
+.vz-fl{display:flex;align-items:center;justify-content:space-between;padding:0 5px;border-bottom:1px solid var(--bo);font-size:9px;color:var(--t3)}
+.vz-fl:last-child{border-bottom:none}
+.vz-fl.has{background:rgba(108,111,255,.22);cursor:pointer}
+.vz-fn{opacity:.65}
+.vz-ct{background:var(--a);color:#fff;border-radius:8px;min-width:14px;height:12px;line-height:12px;text-align:center;font-size:9px;font-weight:700;padding:0 3px}
+.vz-gap{position:relative;align-self:stretch}
+.vz-bridge{position:absolute;left:-2px;right:-2px;background:var(--s2);border:1.5px solid var(--bo2);display:flex;align-items:center;justify-content:center;font-size:8px;color:var(--t2);font-weight:700;border-radius:3px}
+.vz-oth{display:flex;align-items:center;justify-content:center;cursor:pointer}
+.vz-oct{background:var(--am);color:#fff;border-radius:10px;min-width:22px;height:20px;line-height:20px;text-align:center;font-size:12px;font-weight:700;padding:0 6px}
 </style>
 </head>
 <body>
@@ -353,6 +390,7 @@ body {
     <div class="htop">
       <div class="htitle" id="admin-trigger" onclick="adminTap()">Consult <b>E-Record</b></div>
       <div style="display:flex;align-items:center;gap:8px">
+        <button class="hbin" onclick="openSettings()" aria-label="Tab settings" style="background:var(--s2);color:var(--t2);font-size:15px">⚙️</button>
         <button class="hbin theme-toggle-btn" onclick="toggleTheme()" aria-label="Toggle Theme">☀️</button>
         <button class="hbin" onclick="confirmClearAll()" aria-label="Clear all data">🗑</button>
         <button class="hbin" onclick="doSignOut()" title="Sign out" style="font-size:18px;background:var(--s2);color:var(--t2)" id="user-lbl">🚪</button>
@@ -362,8 +400,10 @@ body {
       <button class="tab on" id="t-today" onclick="go('today')">📋 Today<span class="bdg h" id="b-today"></span></button>
       <button class="tab" id="t-imp" onclick="go('imp')">⏰ Impending<span class="bdg h" id="b-imp"></span></button>
       <button class="tab" id="t-done" onclick="go('done')">📋 All Cases<span class="bdg h" id="b-done"></span></button>
+      <button class="tab" id="t-viz" onclick="go('viz')">🏥 Visualize</button>
       <button class="tab" id="t-dc" onclick="go('dc')">🏠 Discharged<span class="bdg h" id="b-dc"></span></button>
       <button class="tab" id="t-vip" onclick="go('vip')">⭐ VIP<span class="bdg h" id="b-vip"></span></button>
+      <button class="tab" id="t-rem" onclick="go('rem')">📝 Reminder<span class="bdg h" id="b-rem"></span></button>
       <button class="tab" id="t-stats" onclick="go('stats')">📊 Stats</button>
     </div>
   </div>
@@ -372,8 +412,10 @@ body {
     <div class="view on" id="v-today"></div>
     <div class="view" id="v-imp"></div>
     <div class="view" id="v-done"></div>
+    <div class="view" id="v-viz"></div>
     <div class="view" id="v-dc"></div>
     <div class="view" id="v-vip"></div>
+    <div class="view" id="v-rem"></div>
     <div class="view" id="v-stats"></div>
   </div>
 
@@ -477,6 +519,46 @@ body {
     </div>
   </div>
 </div>
+
+<div class="ov-wrap" id="ov-settings" onclick="bkd(event,'ov-settings')">
+ <div class="sheet">
+  <div class="shdl"></div>
+  <div class="shhdr"><div class="shtitle">⚙️ Tab Settings</div><button class="xcls" onclick="cls('ov-settings')">✕</button></div>
+  <div style="padding:8px 16px 0;font-size:12px;color:var(--t3)">Choose which tabs to show. You can change this anytime by tapping ⚙️.</div>
+  <div id="settings-body" style="padding:4px 16px 16px"></div>
+ </div>
+</div>
+
+<div class="ov-wrap" id="ov-rem" onclick="bkd(event,'ov-rem')">
+ <div class="sheet">
+  <div class="shdl"></div>
+  <div class="shhdr"><div class="shtitle" id="rem-title">📝 Reminders</div><button class="xcls" onclick="cls('ov-rem')">✕</button></div>
+  <div style="padding:12px 16px 16px">
+   <div style="display:flex;gap:8px;margin-bottom:10px">
+    <input class="fi" id="rem-input" placeholder="Add a reminder..." autocomplete="off" onkeydown="if(event.key==='Enter')addRem()">
+    <button onclick="addRem()" style="padding:0 16px;border-radius:var(--rsm);background:var(--a);border:none;color:#fff;font-size:20px;cursor:pointer;flex-shrink:0">+</button>
+   </div>
+   <div id="rem-list"></div>
+   <div style="font-size:11px;color:var(--t3);margin-top:10px;text-align:center">Tick to complete — completed items appear under "Review" in the Reminder tab</div>
+  </div>
+ </div>
+</div>
+
+<div class="ov-wrap" id="ov-pic" onclick="bkd(event,'ov-pic')">
+ <div class="sheet">
+  <div class="shdl"></div>
+  <div class="shhdr"><div class="shtitle" id="pic-title">🖼 Picture</div><button class="xcls" onclick="cls('ov-pic')">✕</button></div>
+  <div style="padding:12px 16px 16px;display:flex;flex-direction:column;gap:12px">
+   <img id="pic-img" style="width:100%;border-radius:12px;border:1px solid var(--bo2)" alt="Patient picture">
+   <div style="font-size:11px;color:var(--t3);text-align:center">📱 Stored on this device only (not in cloud) — removed automatically on discharge</div>
+   <div style="display:flex;gap:8px">
+    <button class="ab agr" style="flex:1" onclick="picReplace()">🔄 Replace</button>
+    <button class="ab ard" style="flex:1" onclick="picDelete()">🗑 Remove</button>
+   </div>
+  </div>
+ </div>
+</div>
+<input type="file" id="pic-file" accept="image/*" style="display:none">
 
 <div class="toast" id="toast"></div>
 <div class="disclaimer">Unofficial — please use with caution</div>
@@ -1007,6 +1089,8 @@ function card(c){
     <div class="ca" style="background:${TK[c.ty]||'#6c6fff'}"></div>
     <div class="cr1">
       <div class="cn">${esc(c.nm)||'–'}</div>
+      <button class="opd-btn${(c.rem||[]).some(r=>!r.done)?' on':''}" onclick="event.stopPropagation();openRem('${c.id}')" title="Reminders">📝</button>
+      <button class="opd-btn${_picIds.has(c.id)?' on':''}" onclick="event.stopPropagation();picClick('${c.id}')" title="Picture">📷</button>
       <button class="opd-btn${c.opd?' on':''}" onclick="event.stopPropagation();toggleOpd('${c.id}')" title="OPD appt set">✅</button>
       <button class="sbtn${c.st?' on':''}" onclick="event.stopPropagation();star('${c.id}')" aria-label="VIP">★</button>
     </div>
@@ -1195,13 +1279,14 @@ function badges(){
   b('b-done',all.filter(c=>!c.dc).length);
   b('b-dc',all.filter(c=>c.dc).length);
   b('b-vip',all.filter(c=>c.st).length);
+  b('b-rem',all.filter(c=>!c.dc).reduce((n,c)=>n+((c.rem||[]).filter(r=>!r.done).length),0));
 }
 window.badges=badges;
 
 /* ===== TAB ===== */
 function go(t){
   tab=t;
-  ['today','imp','done','dc','vip','stats'].forEach(x=>{
+  ['today','imp','done','viz','dc','vip','rem','stats'].forEach(x=>{
     document.getElementById('t-'+x).classList.toggle('on',x===t);
     document.getElementById('v-'+x).classList.toggle('on',x===t);
   });
@@ -1215,6 +1300,8 @@ function fullRender(){
   else if(tab==='done')rDone();
   else if(tab==='dc')rDc();
   else if(tab==='vip')rVip();
+  else if(tab==='viz')rViz();
+  else if(tab==='rem')rRem();
   else rStats();
   badges();
 }
@@ -1232,6 +1319,8 @@ function render(){
     else rDc();
   }
   else if(tab==='vip')rVip();
+  else if(tab==='viz')rViz();
+  else if(tab==='rem')rRem();
   else rStats();
   badges();
 }
@@ -1349,8 +1438,8 @@ async function saveFU(){
   await window._saveToCloud(updated);
   toast('📅 Follow-up updated');
 }
-function qd(n,id){const el=document.getElementById(id);const base=el.value?new Date(el.value+'T00:00:00'):new Date();base.setDate(base.getDate()+n);el.value=localDateStr(base)}
-function qdToday(id){document.getElementById(id).value=localDateStr(new Date())}
+function qd(n,id){const el=document.getElementById(id);const base=el.value?new Date(el.value+'T00:00:00'):new Date();base.setDate(base.getDate()+n);el.value=localDateStr(base);refreshDateOverlays()}
+function qdToday(id){document.getElementById(id).value=localDateStr(new Date());refreshDateOverlays()}
 
 /* ===== ACTIONS ===== */
 async function starFromDet(id){
@@ -1368,7 +1457,7 @@ async function star(id){
 async function dc(id){
   const c=load().find(x=>x.id===id);if(!c)return;
   await window._saveToCloud({...c,dc:true,dcDate:today(),upd:new Date().toISOString()});
-  toast('🏠 Discharged');
+  if(_picIds.has(id)){await picDel(id);toast('🏠 Discharged — picture removed')}else toast('🏠 Discharged');
 }
 async function undc(id){
   const c=load().find(x=>x.id===id);if(!c)return;
@@ -1377,7 +1466,7 @@ async function undc(id){
 }
 function del(id){
   showConf('🗑','Delete case?','This case will be permanently deleted.',
-    'Delete',async()=>{cls('ov-det');await window._deleteFromCloud(id);toast('🗑 Deleted')});
+    'Delete',async()=>{cls('ov-det');if(_picIds.has(id))await picDel(id);await window._deleteFromCloud(id);toast('🗑 Deleted')});
 }
 async function toggleOpd(id){
   const c=load().find(x=>x.id===id);if(!c)return;
@@ -1398,7 +1487,7 @@ function grannyTurbo(){
 }
 function confirmClearAll(){
   showConf('⚠️','Delete ALL data?','Every patient record will be permanently erased from your account. This cannot be undone.',
-    'Delete All',async()=>{await window._clearAllFromCloud();toast('🗑 All data cleared')});
+    'Delete All',async()=>{picClearAll();await window._clearAllFromCloud();toast('🗑 All data cleared')});
 }
 
 /* ===== CONFIRM ===== */
@@ -1425,8 +1514,8 @@ function expCSV(){
 }
 
 /* ===== UTILS ===== */
-function set(id,h){const e=document.getElementById(id);if(e)e.innerHTML=h}
-function open(id){document.getElementById(id).classList.add('on')}
+function set(id,h){const e=document.getElementById(id);if(e){e.innerHTML=h;enhanceDates(e);refreshDateOverlays()}}
+function open(id){const e=document.getElementById(id);e.classList.add('on');enhanceDates(e);refreshDateOverlays()}
 function cls(id){
   const el=document.getElementById(id);if(!el)return;
   // Blur focused input so keyboard dismisses cleanly
@@ -1604,6 +1693,255 @@ async function adminChangePw(){
   toast('✅ Admin password updated');
   document.getElementById('admin-newpw').value='';
 }
+
+/* ═══════════════ TAB SETTINGS (⚙️) ═══════════════ */
+const TAB_IDS=['today','imp','done','viz','dc','vip','rem','stats'];
+const TAB_LABELS={today:'📋 Today',imp:'⏰ Impending',done:'📋 All Cases',viz:'🏥 Visualize',dc:'🏠 Discharged',vip:'⭐ VIP',rem:'📝 Reminder',stats:'📊 Stats'};
+function tabPrefs(){try{return JSON.parse(localStorage.getItem('rehab_tabs'))||{}}catch{return{}}}
+function tabVisible(id){return tabPrefs()[id]!==false}
+function applyTabPrefs(){
+  TAB_IDS.forEach(id=>{const el=document.getElementById('t-'+id);if(el)el.style.display=tabVisible(id)?'':'none'});
+  if(!tabVisible(tab)){const first=TAB_IDS.find(tabVisible);if(first)go(first)}
+}
+function openSettings(){renderSettings();open('ov-settings')}
+function renderSettings(){
+  const pr=tabPrefs();
+  set('settings-body',TAB_IDS.map(id=>`
+   <div class="set-row">
+    <div style="font-size:14px;font-weight:600">${TAB_LABELS[id]}</div>
+    <input type="checkbox" class="set-chk" ${pr[id]!==false?'checked':''} onchange="toggleTabPref('${id}',this.checked)">
+   </div>`).join(''));
+}
+function toggleTabPref(id,show){
+  const pr=tabPrefs();pr[id]=show;
+  if(!TAB_IDS.some(x=>pr[x]!==false)){toast('⚠ At least one tab must stay visible');pr[id]=true}
+  localStorage.setItem('rehab_tabs',JSON.stringify(pr));
+  applyTabPrefs();renderSettings();
+}
+
+/* ═══════════════ DATE PICKER FIX (PC) ═══════════════ */
+// 1) Click anywhere on a date field opens the native calendar popup (showPicker).
+// 2) On desktop, display value as dd/mm/yyyy via overlay (native format follows OS locale and can't be changed).
+const IS_COARSE=window.matchMedia&&matchMedia('(pointer:coarse)').matches;
+function enhanceDates(root){
+  if(!root||!root.querySelectorAll)return;
+  root.querySelectorAll('input[type=date]:not([data-dx])').forEach(inp=>{
+    inp.dataset.dx='1';
+    inp.addEventListener('click',()=>{try{inp.showPicker&&inp.showPicker()}catch(e){}});
+    if(IS_COARSE)return; // phones/tablets already show locale format + native picker
+    const w=document.createElement('span');w.className='dwrap masked';
+    inp.parentNode.insertBefore(w,inp);w.appendChild(inp);
+    const ov=document.createElement('span');ov.className='dov';
+    try{ov.style.fontSize=getComputedStyle(inp).fontSize}catch(e){}
+    w.appendChild(ov);
+    const upd=()=>{
+      if(inp.value){const[y,m,d]=inp.value.split('-');ov.textContent=`${d}/${m}/${y}`;ov.style.color='var(--t)'}
+      else{ov.textContent='dd/mm/yyyy';ov.style.color='var(--t3)'}
+    };
+    inp._dov=upd;
+    inp.addEventListener('change',upd);inp.addEventListener('input',upd);
+    upd();
+  });
+}
+function refreshDateOverlays(){document.querySelectorAll('input[data-dx]').forEach(i=>{if(i._dov)i._dov()})}
+
+/* ═══════════════ REMINDERS (📝) ═══════════════ */
+let _remCaseId=null,remShowDone=false;
+function openRem(id){_remCaseId=id;renderRemSheet();open('ov-rem');}
+function renderRemSheet(){
+  const c=load().find(x=>x.id===_remCaseId);if(!c)return;
+  document.getElementById('rem-title').textContent='📝 '+(c.nm||'Reminders');
+  const items=(c.rem||[]).filter(r=>!r.done);
+  document.getElementById('rem-list').innerHTML=items.length
+    ?items.map(r=>`<div class="rem-item"><button class="rem-tick" onclick="tickRem('${c.id}','${r.id}')"></button><div class="rem-txt">${esc(r.txt)}</div></div>`).join('')
+    :`<div style="text-align:center;color:var(--t3);font-size:13px;padding:10px 0">No reminders yet — add one above</div>`;
+}
+async function addRem(){
+  const inp=document.getElementById('rem-input');
+  const txt=inp.value.trim();if(!txt)return;
+  const c=load().find(x=>x.id===_remCaseId);if(!c)return;
+  const rem=[...(c.rem||[]),{id:uid_(),txt,done:false,created:new Date().toISOString()}];
+  inp.value='';inp.focus();
+  await window._saveToCloud({...c,rem,upd:new Date().toISOString()});
+  renderRemSheet();
+}
+async function tickRem(cid,rid){
+  const c=load().find(x=>x.id===cid);if(!c)return;
+  const rem=(c.rem||[]).map(r=>r.id===rid?{...r,done:!r.done,doneAt:new Date().toISOString()}:r);
+  await window._saveToCloud({...c,rem,upd:new Date().toISOString()});
+  if(_remCaseId===cid&&document.getElementById('ov-rem').classList.contains('on'))renderRemSheet();
+}
+function remGroupHTML(g,done){
+  return`<div class="card" style="cursor:default${done?';opacity:.72':''}">
+    <div class="cn" style="margin-bottom:6px">${esc(g.c.nm)} ${g.c.wd?`<span class="bh bwd">${esc(g.c.wd)}</span>`:''}</div>
+    ${g.items.map(r=>`<div class="rem-item"><button class="rem-tick${done?' done':''}" onclick="tickRem('${g.c.id}','${r.id}')">${done?'✓':''}</button><div class="rem-txt${done?' done':''}">${esc(r.txt)}</div></div>`).join('')}
+  </div>`;
+}
+function rRem(){
+  const act=load().filter(c=>!c.dc);
+  const activeGroups=act.map(c=>({c,items:(c.rem||[]).filter(r=>!r.done)})).filter(g=>g.items.length);
+  const doneGroups=act.map(c=>({c,items:(c.rem||[]).filter(r=>r.done)})).filter(g=>g.items.length);
+  const doneCount=doneGroups.reduce((n,g)=>n+g.items.length,0);
+  let h=`<div style="text-align:center;padding:0 0 8px">
+    <button onclick="remShowDone=!remShowDone;rRem()" style="background:none;border:none;color:var(--a);font-size:13px;font-weight:600;cursor:pointer;padding:4px 14px">Review ${remShowDone?'▲':'▼'}${doneCount?` (${doneCount})`:''}</button>
+  </div>`;
+  if(remShowDone){
+    h+=doneCount
+      ?`<div class="sh">✔ Completed (${doneCount}) — tap ✓ to restore</div><div class="cards" style="margin-bottom:10px">${doneGroups.map(g=>remGroupHTML(g,true)).join('')}</div>`
+      :`<div style="text-align:center;font-size:12px;color:var(--t3);padding:2px 0 12px">No completed reminders</div>`;
+  }
+  if(!activeGroups.length){
+    h+=`<div class="empty"><div class="ei">📝</div><div class="et">No reminders</div><div class="es">Tap 📝 on any case card to add one</div></div>`;
+  }else{
+    h+=`<div class="sh">📝 Active</div><div class="cards">${activeGroups.map(g=>remGroupHTML(g,false)).join('')}</div>`;
+  }
+  set('v-rem',h);
+}
+
+/* ═══════════════ PICTURES (📷 — local device only, IndexedDB) ═══════════════ */
+let _picDB=null,_picIds=new Set(),_picCaseId=null;
+function _picOpen(){return new Promise((res,rej)=>{
+  const r=indexedDB.open('rehab_pics',1);
+  r.onupgradeneeded=()=>{r.result.createObjectStore('pics')};
+  r.onsuccess=()=>res(r.result);
+  r.onerror=()=>rej(r.error);
+})}
+async function picInit(){
+  try{
+    _picDB=await _picOpen();
+    const rq=_picDB.transaction('pics').objectStore('pics').getAllKeys();
+    rq.onsuccess=()=>{_picIds=new Set(rq.result||[]);window.render&&window.render()};
+  }catch(e){console.warn('Picture storage unavailable',e)}
+}
+function picGet(id){return new Promise(res=>{
+  if(!_picDB)return res(null);
+  const rq=_picDB.transaction('pics').objectStore('pics').get(id);
+  rq.onsuccess=()=>res(rq.result||null);rq.onerror=()=>res(null);
+})}
+function picPut(id,data){return new Promise(res=>{
+  if(!_picDB)return res(false);
+  const rq=_picDB.transaction('pics','readwrite').objectStore('pics').put(data,id);
+  rq.onsuccess=()=>{_picIds.add(id);res(true)};rq.onerror=()=>res(false);
+})}
+function picDel(id){return new Promise(res=>{
+  _picIds.delete(id);
+  if(!_picDB)return res(false);
+  const rq=_picDB.transaction('pics','readwrite').objectStore('pics').delete(id);
+  rq.onsuccess=()=>res(true);rq.onerror=()=>res(false);
+})}
+function picClearAll(){
+  _picIds=new Set();
+  if(_picDB){try{_picDB.transaction('pics','readwrite').objectStore('pics').clear()}catch(e){}}
+}
+function compressImage(file){return new Promise((res,rej)=>{
+  const img=new Image();
+  img.onload=()=>{
+    const max=1600;let w=img.naturalWidth,h=img.naturalHeight;
+    const sc=Math.min(1,max/Math.max(w,h));w=Math.round(w*sc)||1;h=Math.round(h*sc)||1;
+    const cv=document.createElement('canvas');cv.width=w;cv.height=h;
+    cv.getContext('2d').drawImage(img,0,0,w,h);
+    URL.revokeObjectURL(img.src);
+    res(cv.toDataURL('image/jpeg',.85));
+  };
+  img.onerror=rej;
+  img.src=URL.createObjectURL(file);
+})}
+async function picClick(id){
+  _picCaseId=id;
+  if(!_picDB){toast('⚠ Picture storage not available in this browser');return}
+  if(_picIds.has(id)){
+    const data=await picGet(id);
+    if(data){
+      document.getElementById('pic-img').src=data;
+      const c=load().find(x=>x.id===id);
+      document.getElementById('pic-title').textContent='🖼 '+((c&&c.nm)||'Picture');
+      open('ov-pic');return;
+    }
+    _picIds.delete(id);
+  }
+  const f=document.getElementById('pic-file');f.value='';f.click();
+}
+function picReplace(){const f=document.getElementById('pic-file');f.value='';f.click()}
+function picDelete(){
+  showConf('🗑','Remove picture?','The picture will be deleted from this device.','Remove',
+    async()=>{await picDel(_picCaseId);cls('ov-pic');toast('🗑 Picture removed');window.render&&window.render()});
+}
+document.getElementById('pic-file').addEventListener('change',async e=>{
+  const file=e.target.files&&e.target.files[0];
+  if(!file||!_picCaseId)return;
+  try{
+    const data=await compressImage(file);
+    const ok=await picPut(_picCaseId,data);
+    if(!ok){toast('⚠ Could not save picture');return}
+    if(document.getElementById('ov-pic').classList.contains('on'))document.getElementById('pic-img').src=data;
+    toast('🖼 Picture saved on this device');
+    window.render&&window.render();
+  }catch(err){toast('⚠ Could not read image');console.error(err)}
+});
+
+/* ═══════════════ VISUALIZE (🏥 buildings) ═══════════════ */
+const VZ_FH=15; // px per floor
+function wardLoc(wd){
+  if(!wd)return{b:'o'};
+  const w=String(wd).split('/')[0].trim();
+  if(/^สก/.test(w)){
+    const f=parseInt(w.replace(/^สก\.?\s*/,''),10);
+    return(f>=1&&f<=20)?{b:'s',f}:{b:'o'};
+  }
+  if(/^\d/.test(w)){
+    const n=parseInt(w,10);
+    if(n>=1&&n<=28)return{b:'p',f:n};
+  }
+  return{b:'o'};
+}
+function rViz(){
+  const act=load().filter(c=>!c.dc);
+  const p={},sk={};const oth=[];
+  act.forEach(c=>{
+    const l=wardLoc(c.wd);
+    if(l.b==='p')(p[l.f]=p[l.f]||[]).push(c);
+    else if(l.b==='s')(sk[l.f]=sk[l.f]||[]).push(c);
+    else oth.push(c);
+  });
+  const pN=Object.values(p).reduce((n,a)=>n+a.length,0);
+  const sN=Object.values(sk).reduce((n,a)=>n+a.length,0);
+  const floors=(b,total,data)=>{
+    let r='';
+    for(let f=total;f>=1;f--){
+      const n=(data[f]||[]).length;
+      r+=`<div class="vz-fl${n?' has':''}" style="height:${VZ_FH}px"${n?` onclick="vzTap('${b}',${f})"`:''}><span class="vz-fn">${f}</span>${n?`<span class="vz-ct">${n}</span>`:''}</div>`;
+    }
+    return r;
+  };
+  const h=`
+  <div class="sbar">
+   <div class="sc"><div class="sn" style="color:var(--a)">${pN}</div><div class="sl">ภูมิสิริ</div></div>
+   <div class="sc"><div class="sn" style="color:var(--g)">${sN}</div><div class="sl">สก.</div></div>
+   <div class="sc"><div class="sn" style="color:var(--am)">${oth.length}</div><div class="sl">Others</div></div>
+  </div>
+  <div style="font-size:11px;color:var(--t3);margin-bottom:4px">🏥 Active cases by floor — tap a highlighted floor to see who's there</div>
+  <div class="vz-wrap">
+    <div class="vz-b" style="width:36%"><div class="vz-name">ภูมิสิริ</div><div class="vz-body">${floors('p',28,p)}</div></div>
+    <div class="vz-gap" style="width:9%"><div class="vz-bridge" style="bottom:${6*VZ_FH+2}px;height:${VZ_FH+4}px;transform:skewY(-7deg)">7↔8</div></div>
+    <div class="vz-b" style="width:30%"><div class="vz-name">สก.</div><div class="vz-body">${floors('s',20,sk)}</div></div>
+    <div style="width:5%"></div>
+    <div class="vz-b" style="width:20%"><div class="vz-name">Others</div><div class="vz-body vz-oth" style="height:${5*VZ_FH}px"${oth.length?` onclick="vzTap('o',0)"`:''}>${oth.length?`<div class="vz-oct">${oth.length}</div>`:`<div style="font-size:9px;color:var(--t3)">–</div>`}</div></div>
+  </div>`;
+  set('v-viz',h);
+}
+function vzTap(b,f){
+  const act=load().filter(c=>!c.dc);
+  const list=act.filter(c=>{const l=wardLoc(c.wd);return l.b===b&&(b==='o'||l.f===f)});
+  if(!list.length)return;
+  const lbl=b==='p'?`ภูมิสิริ ชั้น ${f}`:b==='s'?`สก. ชั้น ${f}`:'Others';
+  const names=list.map(c=>`${c.nm}${c.wd?' ('+c.wd+')':''}`);
+  toast(`${lbl}: ${names.slice(0,3).join(' · ')}${names.length>3?' +'+(names.length-3):''}`);
+}
+
+/* ═══════════════ INIT new features ═══════════════ */
+enhanceDates(document);
+applyTabPrefs();
+picInit();
 
 /* ── Battery optimizations ── */
 
