@@ -263,7 +263,7 @@ input[type=date]{cursor:pointer}
 <div id="login-screen">
   <button class="theme-toggle-btn" onclick="toggleTheme()" style="position:absolute; top:calc(var(--saf-t) + 16px); right:20px; background:var(--s2); border:1px solid var(--bo); border-radius:50%; width:36px; height:36px; font-size:16px; cursor:pointer; display:flex; align-items:center; justify-content:center; color:var(--t)">☀️</button>
   <div class="login-logo" id="login-granny">
-    <div class="granny-wrap"><video class="granny" src="Video.mp4" autoplay loop muted playsinline onclick="grannyTurbo()" id="granny-vid"></video></div>
+    <div class="granny-wrap"><video class="granny" src="Video.mp4" preload="metadata" autoplay loop muted playsinline onclick="grannyTurbo()" id="granny-vid"></video></div>
   </div>
   <div class="login-title">Consult <b>E-Record</b></div>
 
@@ -532,6 +532,13 @@ input[type=date]{cursor:pointer}
   <div class="shhdr"><div class="shtitle">⚙️ Tab Settings</div><button class="xcls" onclick="cls('ov-settings')">✕</button></div>
   <div style="padding:8px 16px 0;font-size:12px;color:var(--t3)">Choose which tabs to show. You can change this anytime by tapping ⚙️.</div>
   <div id="settings-body" style="padding:4px 16px 16px"></div>
+  <div style="padding:0 16px 16px;border-top:1px solid var(--bo);margin-top:4px">
+   <div style="font-size:11px;color:var(--t3);font-weight:600;text-transform:uppercase;letter-spacing:.4px;padding:14px 0 8px">Photo storage</div>
+   <div class="set-row">
+    <div style="font-size:14px;font-weight:600">Do not delete photos when discharge</div>
+    <input type="checkbox" class="set-chk" id="keep-pics-chk" onchange="setKeepPicsOnDischarge(this.checked)">
+   </div>
+  </div>
   <div style="padding:0 16px 16px;border-top:1px solid var(--bo);margin-top:4px">
    <div style="font-size:11px;color:var(--t3);font-weight:600;text-transform:uppercase;letter-spacing:.4px;padding:14px 0 8px">Migrate existing records</div>
    <button class="expbtn" style="width:100%;justify-content:center;box-sizing:border-box" onclick="cls('ov-settings');setTimeout(openImport,180)">📥 Import cases from Google Sheet / Excel / CSV</button>
@@ -1164,8 +1171,9 @@ function rToday(){
   if(ov.length)h+=`<div class="sh">⚠️ Overdue (${ov.length})</div><div class="cards">${ov.map(card).join('')}</div>`;
   if(td.length)h+=`<div class="sh" style="margin-top:8px">📅 Today — ${fd(t)} (${td.length})</div><div class="cards">${td.map(card).join('')}</div>`;
   if(nd.length)h+=`<div class="sh" style="margin-top:8px">No F/U date (${nd.length})</div><div class="cards">${nd.map(card).join('')}</div>`;
-  if(!ov.length&&!td.length&&!nd.length)h+=`<div class="empty"><div class="granny-wrap" style="margin-bottom:8px"><video class="granny" src="Video.mp4" autoplay loop muted playsinline onclick="grannyTurbo()" id="granny-vid"></video></div><div class="et">${act.length?'All clear for today':'No active cases'}</div><div class="es">${act.length?act.length+' case(s) with future F/U':'Tap + to add a consult'}</div></div>`;
+  if(!ov.length&&!td.length&&!nd.length)h+=`<div class="empty"><div class="granny-wrap" style="margin-bottom:8px"><video class="granny" src="Video.mp4" preload="metadata" autoplay loop muted playsinline onclick="grannyTurbo()" id="granny-vid"></video></div><div class="et">${act.length?'All clear for today':'No active cases'}</div><div class="es">${act.length?act.length+' case(s) with future F/U':'Tap + to add a consult'}</div></div>`;
   set('v-today',h);
+  if(window._iObs)document.querySelectorAll('#v-today video.granny').forEach(v=>_iObs.observe(v));
 }
 
 /* ===== IMPENDING ===== */
@@ -1499,10 +1507,26 @@ async function star(id){
   await window._saveToCloud({...c,st:!c.st,upd:new Date().toISOString()});
   toast(c.st?'☆ Removed from VIP':'⭐ Marked VIP');
 }
+function keepPicsOnDischarge(){return localStorage.getItem('rehab_keep_pics_on_dc')==='true'}
+function setKeepPicsOnDischarge(v){localStorage.setItem('rehab_keep_pics_on_dc',v?'true':'false')}
+function picWarnShown(){return localStorage.getItem('rehab_pic_warn_shown')==='1'}
 async function dc(id){
   const c=load().find(x=>x.id===id);if(!c)return;
+  if(_picIds.has(id)&&!keepPicsOnDischarge()&&!picWarnShown()){
+    localStorage.setItem('rehab_pic_warn_shown','1'); // shown once ever per account, regardless of outcome
+    showConf('📷','Photo will be deleted','This patient has a photo attached. To save device storage, photos are automatically deleted when a patient is discharged. You can turn this off anytime in ⚙️ Settings → "Do not delete photos when discharge".',
+      'Discharge & Delete Photo',()=>_doDischarge(id));
+    return;
+  }
+  await _doDischarge(id);
+}
+async function _doDischarge(id){
+  const c=load().find(x=>x.id===id);if(!c)return;
   await window._saveToCloud({...c,dc:true,dcDate:today(),upd:new Date().toISOString()});
-  if(_picIds.has(id)){await picDel(id);toast('🏠 Discharged — picture removed')}else toast('🏠 Discharged');
+  if(_picIds.has(id)){
+    if(keepPicsOnDischarge())toast('🏠 Discharged — photo kept');
+    else{await picDel(id);toast('🏠 Discharged — picture removed')}
+  }else toast('🏠 Discharged');
 }
 async function undc(id){
   const c=load().find(x=>x.id===id);if(!c)return;
@@ -1755,7 +1779,7 @@ function applyTabPrefs(){
   TAB_IDS.forEach(id=>{const el=document.getElementById('t-'+id);if(el)el.style.display=tabVisible(id)?'':'none'});
   if(!tabVisible(tab)){const first=TAB_IDS.find(tabVisible);if(first)go(first)}
 }
-function openSettings(){renderSettings();open('ov-settings')}
+function openSettings(){renderSettings();document.getElementById('keep-pics-chk').checked=keepPicsOnDischarge();open('ov-settings')}
 function renderSettings(){
   const pr=tabPrefs();
   set('settings-body',TAB_IDS.map(id=>`
@@ -1873,8 +1897,9 @@ function rRem(){
   const activeGroups=act.map(c=>({c,items:(c.rem||[]).filter(r=>!r.done)})).filter(g=>g.items.length);
   const doneGroups=act.map(c=>({c,items:(c.rem||[]).filter(r=>r.done)})).filter(g=>g.items.length);
   const doneCount=doneGroups.reduce((n,g)=>n+g.items.length,0);
-  let h=`<div style="text-align:center;padding:0 0 8px">
+  let h=`<div style="text-align:center;padding:0 0 8px;display:flex;align-items:center;justify-content:center;gap:6px;flex-wrap:wrap">
     <button onclick="remShowDone=!remShowDone;rRem()" style="background:none;border:none;color:var(--a);font-size:13px;font-weight:600;cursor:pointer;padding:4px 14px">Review ${remShowDone?'▲':'▼'}${doneCount?` (${doneCount})`:''}</button>
+    ${remShowDone&&doneCount?`<button onclick="confirmClearRemHistory()" style="background:none;border:none;color:var(--t3);font-size:12px;cursor:pointer;padding:4px 10px">🗑 Clear History</button>`:''}
   </div>`;
   if(remShowDone){
     h+=doneCount
@@ -1887,6 +1912,19 @@ function rRem(){
     h+=`<div class="sh">📝 Active</div><div class="cards">${activeGroups.map(g=>remGroupHTML(g,false)).join('')}</div>`;
   }
   set('v-rem',h);
+}
+function confirmClearRemHistory(){
+  showConf('🗑','Clear reminder history?','Completed reminders will be permanently deleted from all patients (including discharged ones) to free up storage. This cannot be undone.','Clear History',clearRemHistory);
+}
+async function clearRemHistory(){
+  const withDone=load().filter(c=>(c.rem||[]).some(r=>r.done));
+  for(const c of withDone){
+    const rem=(c.rem||[]).filter(r=>!r.done);
+    await window._saveToCloud({...c,rem,upd:new Date().toISOString()});
+  }
+  toast('🗑 Reminder history cleared');
+  remShowDone=false;
+  rRem();
 }
 
 /* ═══════════════ PICTURES (📷 — local device only, IndexedDB) ═══════════════ */
@@ -2113,7 +2151,12 @@ function vzDrawBridge(){
     <rect x="${mx-11}" y="${my-7}" width="22" height="14" rx="3" fill="var(--s2)" stroke="var(--bo2)" stroke-width="1"/>
     <text x="${mx}" y="${my+3}" font-size="7" font-weight="700" text-anchor="middle" fill="var(--t2)">8↔7</text>`;
 }
-window.addEventListener('resize',()=>{if(document.getElementById('vz-wrap'))vzDrawBridge()});
+let _vzResizePending=false;
+window.addEventListener('resize',()=>{
+  if(_vzResizePending||!document.getElementById('vz-wrap'))return;
+  _vzResizePending=true;
+  requestAnimationFrame(()=>{vzDrawBridge();_vzResizePending=false});
+},{passive:true});
 function vzTap(b,f,seg){
   const act=vzFilteredCases();
   const list=act.filter(c=>{
@@ -2404,7 +2447,11 @@ document.addEventListener('visibilitychange',()=>{
   }
 });
 
-// 2. Pause video when it scrolls off screen, resume when visible
+// 2. Pause video when it scrolls off screen, resume when visible.
+// (No longer uses a whole-document MutationObserver — that fired on every single DOM mutation
+// across the whole app, which is expensive given how often views get rebuilt via innerHTML.
+// The header video is static and observed once here; the empty-state video in Today is observed
+// right where it's created, in rToday().)
 const _iObs=new IntersectionObserver(entries=>{
   entries.forEach(e=>{
     if(e.target.tagName==='VIDEO'){
@@ -2413,9 +2460,7 @@ const _iObs=new IntersectionObserver(entries=>{
     }
   });
 },{threshold:0.1});
-new MutationObserver(()=>{
-  document.querySelectorAll('video.granny').forEach(v=>_iObs.observe(v));
-}).observe(document.body,{childList:true,subtree:true});
+window._iObs=_iObs;
 document.querySelectorAll('video.granny').forEach(v=>_iObs.observe(v));
 
 // 3. Throttle render to one per animation frame — prevents redundant repaints
