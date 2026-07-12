@@ -223,14 +223,11 @@ body {
 .set-row:last-child{border-bottom:none}
 .set-chk{width:21px;height:21px;accent-color:var(--a);cursor:pointer}
 /* DATE INPUT dd/mm/yyyy OVERLAY (desktop) */
-.dwrap{position:relative;display:block;width:100%}
-.dr .dwrap{flex:1;min-width:100px;width:auto}
-.dwrap>input{width:100%}
-.dwrap.masked>input{color:transparent}
-.dwrap.masked>input:focus{color:var(--t)}
-.dwrap.masked>input:focus~.dov{display:none}
-.dov{position:absolute;left:13px;top:50%;transform:translateY(-50%);pointer-events:none;font-size:15px;color:var(--t)}
-.dr .dov{left:11px;font-size:13px}
+.dwrap2{position:relative;display:block;width:100%}
+.dr .dwrap2{flex:1;min-width:100px;width:auto}
+.dwrap2>input.dnative{position:absolute;inset:0;width:100%;height:100%;opacity:0;pointer-events:none;border:none;padding:0;margin:0;background:transparent}
+.dwrap2>input:not(.dnative){position:relative;width:100%;box-sizing:border-box}
+.dwrap2>input.dbad{border-color:#e5484d !important}
 input[type=date]{cursor:pointer}
 /* REMINDER */
 .rem-item{display:flex;align-items:flex-start;gap:10px;padding:8px 2px;border-bottom:1px solid var(--bo)}
@@ -1057,6 +1054,7 @@ window._clearAllFromCloud=async()=>{
 let tab='today',fuId=null,pie=null;
 let dcFilter='All',dcSearch='',dcFrom='',dcTo='';
 let doneFilter='All',doneSearch='';
+let vzDayFilter=null; // null='Overall', 'today', or an ISO date string (yyyy-mm-dd)
 let stFrom='',stTo='';
 
 const TYPES=['Stroke','Chronic med','Post op','Swallow','Cardiac','Pulmo','PO','Burn','ICU','Prehab','Hip fast'];
@@ -1774,27 +1772,66 @@ function toggleTabPref(id,show){
 }
 
 /* ═══════════════ DATE PICKER FIX (PC) ═══════════════ */
-// 1) Click anywhere on a date field opens the native calendar popup (showPicker).
-// 2) On desktop, display value as dd/mm/yyyy via overlay (native format follows OS locale and can't be changed).
+// The native <input type=date> always renders its own text in the OS/browser locale (often
+// mm/dd/yyyy) and that's not overridable — not even while a value is being typed or right after
+// a calendar pick. So on desktop we hide the native input entirely (kept only to drive the
+// calendar popup + hold the real ISO value) and put a normal, always-dd/mm/yyyy, fully-typable
+// text field on top of it, two-way synced.
 const IS_COARSE=window.matchMedia&&matchMedia('(pointer:coarse)').matches;
+function dmyDigitsToISO(digits){
+  if(digits.length!==8)return null;
+  const dd=+digits.slice(0,2),mm=+digits.slice(2,4),yyyy=+digits.slice(4,8);
+  if(mm<1||mm>12||dd<1||dd>31||yyyy<1000||yyyy>9999)return null;
+  const pad=x=>String(x).padStart(2,'0');
+  const iso=`${yyyy}-${pad(mm)}-${pad(dd)}`;
+  const chk=new Date(iso+'T00:00:00');
+  if(isNaN(chk)||chk.getFullYear()!==yyyy||chk.getMonth()+1!==mm||chk.getDate()!==dd)return null; // rejects e.g. 31/02
+  return iso;
+}
 function enhanceDates(root){
   if(!root||!root.querySelectorAll)return;
   root.querySelectorAll('input[type=date]:not([data-dx])').forEach(inp=>{
     inp.dataset.dx='1';
     inp.addEventListener('click',()=>{try{inp.showPicker&&inp.showPicker()}catch(e){}});
-    if(IS_COARSE)return; // phones/tablets already show locale format + native picker
-    const w=document.createElement('span');w.className='dwrap masked';
-    inp.parentNode.insertBefore(w,inp);w.appendChild(inp);
-    const ov=document.createElement('span');ov.className='dov';
-    try{ov.style.fontSize=getComputedStyle(inp).fontSize}catch(e){}
-    w.appendChild(ov);
-    const upd=()=>{
-      if(inp.value){const[y,m,d]=inp.value.split('-');ov.textContent=`${d}/${m}/${y}`;ov.style.color='var(--t)'}
-      else{ov.textContent='dd/mm/yyyy';ov.style.color='var(--t3)'}
+    if(IS_COARSE)return; // phones/tablets already show correct locale format + a native wheel picker
+    const wrap=document.createElement('span');wrap.className='dwrap2';
+    inp.parentNode.insertBefore(wrap,inp);wrap.appendChild(inp);
+    inp.classList.add('dnative');inp.tabIndex=-1;
+    const txt=document.createElement('input');
+    txt.type='text';txt.className=Array.from(inp.classList).filter(c=>c!=='dnative').join(' ');
+    txt.placeholder='dd/mm/yyyy';txt.maxLength=10;txt.autocomplete='off';
+    txt.setAttribute('inputmode','numeric');
+    wrap.appendChild(txt);
+    // Native → text: whenever the real (ISO) value changes — from the calendar popup, or from
+    // qd()/qdToday() quick-date buttons — reflect it as dd/mm/yyyy in the visible text field.
+    const syncFromNative=()=>{
+      txt.classList.remove('dbad');
+      if(inp.value){const[y,m,d]=inp.value.split('-');txt.value=`${d}/${m}/${y}`}
+      else txt.value='';
     };
-    inp._dov=upd;
-    inp.addEventListener('change',upd);inp.addEventListener('input',upd);
-    upd();
+    inp._dov=syncFromNative; // keeps existing refreshDateOverlays() callers (qd/qdToday/set/open) working unchanged
+    inp.addEventListener('change',syncFromNative);
+    inp.addEventListener('input',syncFromNative);
+    syncFromNative();
+    // Text → native: live-mask digits into dd/mm/yyyy as the person types; once a complete valid
+    // date is typed, push it into the native input (and fire change so onchange="" handlers still run).
+    txt.addEventListener('input',()=>{
+      const digits=txt.value.replace(/\D/g,'').slice(0,8);
+      txt.value=digits.length<=2?digits:digits.length<=4?digits.slice(0,2)+'/'+digits.slice(2):digits.slice(0,2)+'/'+digits.slice(2,4)+'/'+digits.slice(4);
+      txt.classList.remove('dbad');
+      if(digits.length===8){
+        const iso=dmyDigitsToISO(digits);
+        if(iso){
+          inp.value=iso;
+          inp.dispatchEvent(new Event('input',{bubbles:true}));
+          inp.dispatchEvent(new Event('change',{bubbles:true}));
+        }else txt.classList.add('dbad'); // valid-looking but impossible date (e.g. 31/02/2026)
+      }
+    });
+    // Typing/clicking the visible field also pops the native calendar, so both entry paths work together.
+    const pop=()=>{try{inp.showPicker&&inp.showPicker()}catch(e){}};
+    txt.addEventListener('focus',pop);
+    txt.addEventListener('click',pop);
   });
 }
 function refreshDateOverlays(){document.querySelectorAll('input[data-dx]').forEach(i=>{if(i._dov)i._dov()})}
@@ -1984,8 +2021,36 @@ function vzSegFloorHTML(b,f,segs,labels){
   }).join('');
   return`<div class="vz-fl${n?' has':''}" id="vzf-${b}-${f}" style="height:${VZ_FH}px"><span class="vz-fn">${f}</span><div class="vz-segwrap">${cells}</div></div>`;
 }
+// Mon–Sat of "this coming work week": if today is Sat or Sun, shows next week's Mon–Sat instead of the current one.
+function vzWeekDays(){
+  const t=new Date(),dow=t.getDay(); // 0=Sun..6=Sat
+  const monday=new Date(t);
+  if(dow===0)monday.setDate(t.getDate()+1);       // Sunday -> next day is Monday
+  else if(dow===6)monday.setDate(t.getDate()+2);  // Saturday -> Monday after next
+  else monday.setDate(t.getDate()-(dow-1));       // Mon..Fri -> Monday of this week
+  const days=[];
+  for(let i=0;i<6;i++){const d=new Date(monday);d.setDate(monday.getDate()+i);days.push(localDateStr(d))}
+  return days;
+}
+function vzSetDayFilter(v){vzDayFilter=v;rViz()}
+function vzDayBar(){
+  const days=vzWeekDays();
+  const wk=['Mon','Tue','Wed','Thu','Fri','Sat'];
+  const btn=(val,label,active)=>`<button class="chip${active?' on':''}" onclick="vzSetDayFilter(${val===null?'null':`'${val}'`})">${label}</button>`;
+  return`<div class="fw">
+    ${btn(null,'Overall',vzDayFilter===null)}
+    ${btn('today','Today',vzDayFilter==='today')}
+    ${days.map((d,i)=>btn(d,`${wk[i]} ${new Date(d+'T00:00:00').getDate()}`,vzDayFilter===d)).join('')}
+  </div>`;
+}
+function vzFilteredCases(){
+  const all=load().filter(c=>!c.dc);
+  if(vzDayFilter===null)return all;
+  const target=vzDayFilter==='today'?today():vzDayFilter;
+  return all.filter(c=>c.fu===target);
+}
 function rViz(){
-  const act=load().filter(c=>!c.dc);
+  const act=vzFilteredCases();
   const p=vzGroup(act,'p'),sk=vzGroup(act,'s');
   const oth=act.filter(c=>wardLoc(c.wd).b==='o');
   const pN=Object.values(p).reduce((n,segs)=>n+vzFloorTotal(segs),0);
@@ -2015,12 +2080,12 @@ function rViz(){
   })();
 
   const h=`
+  ${vzDayBar()}
   <div class="sbar">
    <div class="sc"><div class="sn" style="color:var(--a)">${pN}</div><div class="sl">ภูมิสิริ</div></div>
    <div class="sc"><div class="sn" style="color:var(--g)">${sN}</div><div class="sl">สก.</div></div>
    <div class="sc"><div class="sn" style="color:var(--am)">${oth.length}</div><div class="sl">Others</div></div>
   </div>
-  <div style="font-size:11px;color:var(--t3);margin-bottom:4px">🏥 Active cases by floor — ภูมิสิริ 15–27 &amp; สก wings split by segment. Tap a highlighted cell to see who's there.</div>
   <div class="vz-wrap" id="vz-wrap" style="position:relative">
     <svg id="vz-bridge-svg" style="position:absolute;left:0;top:0;width:100%;height:100%;overflow:visible;pointer-events:none"></svg>
     <div class="vz-b" style="width:36%"><div class="vz-name">ภูมิสิริ</div><div class="vz-body">${pFloors}</div></div>
@@ -2050,7 +2115,7 @@ function vzDrawBridge(){
 }
 window.addEventListener('resize',()=>{if(document.getElementById('vz-wrap'))vzDrawBridge()});
 function vzTap(b,f,seg){
-  const act=load().filter(c=>!c.dc);
+  const act=vzFilteredCases();
   const list=act.filter(c=>{
     const l=wardLoc(c.wd);
     if(l.b!==b)return false;
