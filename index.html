@@ -408,6 +408,7 @@ input[type=date]{cursor:pointer}
       <button class="tab" id="t-done" onclick="go('done')">📋 All Cases<span class="bdg h" id="b-done"></span></button>
       <button class="tab" id="t-viz" onclick="go('viz')">🏥 Visualize</button>
       <button class="tab" id="t-dc" onclick="go('dc')">🏠 Discharged<span class="bdg h" id="b-dc"></span></button>
+      <button class="tab" id="t-opd" onclick="go('opd')">✅ OPD<span class="bdg h" id="b-opd"></span></button>
       <button class="tab" id="t-vip" onclick="go('vip')">⭐ VIP<span class="bdg h" id="b-vip"></span></button>
       <button class="tab" id="t-stats" onclick="go('stats')">📊 Stats</button>
     </div>
@@ -419,6 +420,7 @@ input[type=date]{cursor:pointer}
     <div class="view" id="v-done"></div>
     <div class="view" id="v-viz"></div>
     <div class="view" id="v-dc"></div>
+    <div class="view" id="v-opd"></div>
     <div class="view" id="v-vip"></div>
     <div class="view" id="v-rem"></div>
     <div class="view" id="v-stats"></div>
@@ -495,8 +497,9 @@ input[type=date]{cursor:pointer}
 <div class="ov-wrap" id="ov-fu" onclick="bkd(event,'ov-fu')">
  <div class="sheet">
   <div class="shdl"></div>
-  <div class="shhdr"><div class="shtitle">Set Follow-up Date</div><button class="xcls" onclick="cls('ov-fu')">✕</button></div>
+  <div class="shhdr"><div class="shtitle" id="fu-title">Set Follow-up Date</div><button class="xcls" onclick="cls('ov-fu')">✕</button></div>
   <div class="form">
+   <div id="fu-sub" style="font-size:12px;color:var(--t3);margin-top:-6px"></div>
    <div class="fg"><label class="fl">Next Follow-up</label>
     <input class="fi" id="fuinp" type="date">
     <div class="qd-wrap">
@@ -509,6 +512,7 @@ input[type=date]{cursor:pointer}
     </div>
    </div>
    <button class="sbmt" onclick="saveFU()">Confirm</button>
+   <button id="fu-skip-btn" class="ab agr" style="display:none" onclick="cls('ov-fu')">Skip for now</button>
   </div>
  </div>
 </div>
@@ -1119,7 +1123,7 @@ function card(c){
     ${c.dx?`<div class="cdx">${esc(c.dx)}</div>`:''}
     ${c.nt?`<div class="cnotes">${esc(c.nt)}</div>`:''}
     <div class="cfoot">${flab}<div class="cbtns">
-      ${!c.dc?`<button class="mb mfu" onclick="event.stopPropagation();openFU('${c.id}')">Set F/U</button>`:''}
+      <button class="mb mfu" onclick="event.stopPropagation();openFU('${c.id}')">Set F/U</button>
       ${c.dc?`<button class="mb mun" onclick="event.stopPropagation();undc('${c.id}')">↩ Reactivate</button>`:
               `<button class="mb mdc" onclick="event.stopPropagation();dc('${c.id}')">Discharge</button>`}
     </div></div>
@@ -1257,6 +1261,21 @@ function rVip(){
   set('v-vip',cases.length?`<div class="cards">${sortW(cases).map(card).join('')}</div>`:`<div class="empty"><div class="ei">⭐</div><div class="et">No VIP cases</div><div class="es">Tap ★ on any case</div></div>`);
 }
 
+/* ===== OPD (✅ discharged patients with ongoing OPD follow-up) ===== */
+function rOpd(){
+  const cases=load().filter(c=>c.opd);
+  if(!cases.length){set('v-opd',`<div class="empty"><div class="ei">✅</div><div class="et">No OPD follow-ups</div><div class="es">Tap ✅ on any case to mark an OPD appointment</div></div>`);return}
+  const withDate=cases.filter(c=>c.fu).sort((a,b)=>a.fu.localeCompare(b.fu));
+  const noDate=cases.filter(c=>!c.fu);
+  let h='';
+  if(withDate.length){
+    const g={};withDate.forEach(c=>{(g[c.fu]=g[c.fu]||[]).push(c)});
+    h+=Object.keys(g).sort().map(k=>`<div class="sh">✅ ${dayLbl(k)} (${g[k].length})</div><div class="cards">${sortW(g[k]).map(card).join('')}</div>`).join('');
+  }
+  if(noDate.length)h+=`<div class="sh">No F/U date (${noDate.length})</div><div class="cards">${sortW(noDate).map(card).join('')}</div>`;
+  set('v-opd',h);
+}
+
 /* ===== STATS ===== */
 function rStats(){
   const t=today();
@@ -1296,6 +1315,7 @@ function badges(){
   b('b-done',all.filter(c=>!c.dc).length);
   b('b-dc',all.filter(c=>c.dc).length);
   b('b-vip',all.filter(c=>c.st).length);
+  b('b-opd',all.filter(c=>c.opd).length);
   b('b-rem',all.filter(c=>!c.dc).reduce((n,c)=>n+((c.rem||[]).filter(r=>!r.done).length),0));
   if(window.applyTabPrefs)applyTabPrefs();
 }
@@ -1304,7 +1324,7 @@ window.badges=badges;
 /* ===== TAB ===== */
 function go(t){
   tab=t;
-  ['today','imp','done','viz','dc','vip','rem','stats'].forEach(x=>{
+  ['today','imp','done','viz','dc','opd','vip','rem','stats'].forEach(x=>{
     document.getElementById('t-'+x).classList.toggle('on',x===t);
     document.getElementById('v-'+x).classList.toggle('on',x===t);
   });
@@ -1317,6 +1337,7 @@ function fullRender(){
   else if(tab==='imp')rImp();
   else if(tab==='done')rDone();
   else if(tab==='dc')rDc();
+  else if(tab==='opd')rOpd();
   else if(tab==='vip')rVip();
   else if(tab==='viz')rViz();
   else if(tab==='rem')rRem();
@@ -1336,6 +1357,7 @@ function render(){
     if(document.getElementById('dc-cards'))rDcCards();
     else rDc();
   }
+  else if(tab==='opd')rOpd();
   else if(tab==='vip')rVip();
   else if(tab==='viz')rViz();
   else if(tab==='rem')rRem();
@@ -1361,7 +1383,7 @@ function openDet(id){
   ${c.nt?`<div class="dsec"><div class="dl">Notes</div><div class="dnotes">${c.nt}</div></div>`:''}
   <div class="dsec" style="border:none"><div class="dl">Added</div><div class="dv" style="font-size:12px;color:var(--t3)">${c.created?new Date(c.created).toLocaleString('th-TH'):'–'}</div></div>
   <div class="dacts">
-    ${!c.dc?`<button class="ab ap" onclick="cls('ov-det');setTimeout(()=>openFU('${c.id}'),180)">📅 Set Follow-up Date</button>`:''}
+    <button class="ab ap" onclick="cls('ov-det');setTimeout(()=>openFU('${c.id}'),180)">📅 Set Follow-up Date</button>
     <button class="ab aw" onclick="openEdit('${c.id}')">✏️ Edit Case</button>
     <button class="ab agr" onclick="starFromDet('${c.id}')">${c.st?'☆ Remove VIP':'⭐ Mark as VIP'}</button>
     ${c.dc?`<button class="ab ag" onclick="undc('${c.id}');cls('ov-det')">↩ Reactivate</button>`:`<button class="ab" style="background:rgba(255,107,107,.15);color:var(--r)" onclick="dc('${c.id}');cls('ov-det')">🏠 Discharge</button>`}
@@ -1447,7 +1469,14 @@ async function saveCase(){
 }
 
 /* ===== FU ===== */
-function openFU(id){fuId=id;const c=load().find(x=>x.id===id);document.getElementById('fuinp').value=c?.fu||'';open('ov-fu')}
+function openFU(id,optional){
+  fuId=id;const c=load().find(x=>x.id===id);
+  document.getElementById('fuinp').value=c?.fu||'';
+  document.getElementById('fu-title').textContent=optional?'Set OPD Follow-up Date':'Set Follow-up Date';
+  document.getElementById('fu-sub').textContent=optional?'Optional — you can skip this and set it later.':'';
+  document.getElementById('fu-skip-btn').style.display=optional?'':'none';
+  open('ov-fu');
+}
 async function saveFU(){
   if(!fuId)return;
   const c=load().find(x=>x.id===fuId);if(!c)return;
@@ -1488,8 +1517,10 @@ function del(id){
 }
 async function toggleOpd(id){
   const c=load().find(x=>x.id===id);if(!c)return;
-  await window._saveToCloud({...c,opd:!c.opd,upd:new Date().toISOString()});
-  toast(c.opd?'OPD appt cleared':'✅ OPD appt set');
+  const turningOn=!c.opd;
+  await window._saveToCloud({...c,opd:turningOn,upd:new Date().toISOString()});
+  toast(turningOn?'✅ OPD appt set':'OPD appt cleared');
+  if(turningOn)setTimeout(()=>openFU(id,true),250); // optional — set/confirm the OPD follow-up date
 }
 let _grannyTimer=null;
 function grannyTurbo(){
@@ -1713,8 +1744,8 @@ async function adminChangePw(){
 }
 
 /* ═══════════════ TAB SETTINGS (⚙️) ═══════════════ */
-const TAB_IDS=['rem','today','imp','done','viz','dc','vip','stats'];
-const TAB_LABELS={rem:'📝 Reminder',today:'📋 Today',imp:'⏰ Impending',done:'📋 All Cases',viz:'🏥 Visualize',dc:'🏠 Discharged',vip:'⭐ VIP',stats:'📊 Stats'};
+const TAB_IDS=['rem','today','imp','done','viz','dc','opd','vip','stats'];
+const TAB_LABELS={rem:'📝 Reminder',today:'📋 Today',imp:'⏰ Impending',done:'📋 All Cases',viz:'🏥 Visualize',dc:'🏠 Discharged',opd:'✅ OPD',vip:'⭐ VIP',stats:'📊 Stats'};
 function tabPrefs(){try{return JSON.parse(localStorage.getItem('rehab_tabs'))||{}}catch{return{}}}
 function remActiveCount(){return load().filter(c=>!c.dc).reduce((n,c)=>n+((c.rem||[]).filter(r=>!r.done).length),0)}
 function tabVisible(id){
@@ -2038,7 +2069,7 @@ function vzTap(b,f,seg){
 /* ═══════════════ IMPORT (📥 from Google Sheet / Excel / CSV) ═══════════════ */
 let impRows=[],impHasHeader=true,impMap=[],impDefaultType='',impSkipDup=true,impStep=1,impWorkbook=null,impSheetNames=[],impPending=[];
 
-const FIELD_OPTS=[['','— Skip —'],['nm','Patient Name'],['hn','HN'],['wd','Ward'],['dx','Diagnosis'],['ty','Category'],['fu','Follow-up Date'],['firstVisit','First Visit (optional)'],['status','Status (Active/Discharged)'],['st','VIP (yes/no)'],['nt','Notes']];
+const FIELD_OPTS=[['','— Skip —'],['nm','Patient Name'],['hn','HN'],['wd','Ward'],['dx','Diagnosis'],['ty','Category'],['fu','Follow-up Date'],['firstVisit','First Visit (optional)'],['status','Status (IPD→Active, OPD→Discharged+✅, End→Discharged, other→skip)'],['st','VIP (yes/no)'],['nt','Notes']];
 const GUESS_KEYS=[['nm',['name','ชื่อ','patient','คนไข้','pt ']],['hn',['hn']],['wd',['ward','ตึก','ห้อง','room','bed','หอ']],['dx',['dx','diag','โรค','วินิจฉัย']],['ty',['type','category','ประเภท']],['fu',['fu','follow','นัด','appointment']],['firstVisit',['first visit','date added','วันที่มา','admit','วันแรก']],['status',['status','สถานะ']],['st',['vip']],['nt',['note','remark','หมายเหตุ']]];
 function guessField(header){
   const h=(header||'').toString().toLowerCase();
@@ -2062,10 +2093,17 @@ function matchType(v){
   return hit||null;
 }
 function isTruthy(v){return/^(y|yes|true|1|vip|✓|✔|x|จริง|ใช่)$/i.test(String(v||'').trim())}
-// Recognizes sheet status values that mean the case is already discharged/closed
-// (e.g. "End", "DC", "Discharged", "จำหน่าย") — anything else (IPD/OPD/Active/blank) stays active.
+// Status column interpretation, when mapped: IPD -> active inpatient case.
+// End -> discharged, no further OPD follow-up. OPD -> discharged AND flagged with an ongoing OPD follow-up (✅ marked, shows in the OPD tab).
+// Anything else (blank, unrecognized) -> row is skipped, not imported.
 function isDischargedStatus(v){
   return/^(end|dc|discharge|discharged|closed|complete|completed|จำหน่าย|เสร็จ|จบ)/i.test(String(v||'').trim());
+}
+function isActiveStatus(v){
+  return/^(ipd|active|admit|admitted|inpatient)/i.test(String(v||'').trim());
+}
+function isOpdStatus(v){
+  return/^(opd|outpatient|out\s*patient|ผู้ป่วยนอก)/i.test(String(v||'').trim());
 }
 function impIso(y,m,d){if(!y||m<1||m>12||d<1||d>31)return'';const pad=x=>String(x).padStart(2,'0');return`${y}-${pad(m)}-${pad(d)}`}
 function parseDateFlexible(v){
@@ -2212,16 +2250,23 @@ function buildImportCases(){
   const existingNames=new Set(load().map(c=>(c.nm||'').trim().toLowerCase()).filter(Boolean));
   const idx=f=>impMap.indexOf(f);
   const nameIdx=idx('nm'),hnIdx=idx('hn'),wdIdx=idx('wd'),dxIdx=idx('dx'),tyIdx=idx('ty'),fuIdx=idx('fu'),fvIdx=idx('firstVisit'),stIdx=idx('st'),ntIdx=idx('nt'),statusIdx=idx('status');
-  const out=[];let skippedNoName=0,skippedDup=0;
+  const out=[];let skippedNoName=0,skippedDup=0,skippedStatus=0;
   for(let r=dataStart;r<impRows.length;r++){
     const row=impRows[r];if(!row||!row.some(x=>String(x||'').trim()!==''))continue;
     const nm=nameIdx>=0?String(row[nameIdx]||'').trim():'';
     if(!nm){skippedNoName++;continue}
     if(impSkipDup&&existingNames.has(nm.toLowerCase())){skippedDup++;continue}
+    let dcFlag=false,opdFlag=false;
+    if(statusIdx>=0){
+      const rawStatus=row[statusIdx];
+      const discharged=isDischargedStatus(rawStatus),active=isActiveStatus(rawStatus),opdStat=isOpdStatus(rawStatus);
+      if(!discharged&&!active&&!opdStat){skippedStatus++;continue} // blank / unrecognized — not imported
+      dcFlag=discharged||opdStat; // both End and OPD mean the patient is discharged
+      opdFlag=opdStat; // OPD additionally marks the ✅ ongoing-follow-up flag
+    }
     const ty=(tyIdx>=0?matchType(row[tyIdx]):null)||impDefaultType||TYPES[0];
     const fu=fuIdx>=0?parseDateFlexible(row[fuIdx]):'';
     const fv=fvIdx>=0?(parseDateFlexible(row[fvIdx])||fu||today()):(fu||today());
-    const dcFlag=statusIdx>=0?isDischargedStatus(row[statusIdx]):false;
     out.push({
       id:uid_(),nm,
       hn:hnIdx>=0?String(row[hnIdx]||'').trim():'',
@@ -2229,22 +2274,23 @@ function buildImportCases(){
       dx:dxIdx>=0?String(row[dxIdx]||'').trim():'',
       ty,fu,nt:ntIdx>=0?String(row[ntIdx]||'').trim():'',
       firstVisit:fv,st:stIdx>=0?isTruthy(row[stIdx]):false,
-      dc:dcFlag,dcDate:dcFlag?(fu||today()):null,opd:false,
+      dc:dcFlag,dcDate:dcFlag?(fu||today()):null,opd:opdFlag,
       created:new Date().toISOString(),upd:new Date().toISOString()
     });
   }
-  return{out,skippedNoName,skippedDup};
+  return{out,skippedNoName,skippedDup,skippedStatus};
 }
 function renderImportPreview(){
-  const{out,skippedNoName,skippedDup}=buildImportCases();
+  const{out,skippedNoName,skippedDup,skippedStatus}=buildImportCases();
   impPending=out;
-  const dcCount=out.filter(c=>c.dc).length;
-  let h=`<div style="font-size:13px;margin-bottom:8px">Ready to import <b>${out.length}</b> case(s)${dcCount?` — <span style="color:var(--t3)">${dcCount} will import as already discharged</span>`:''}.</div>`;
+  const dcCount=out.filter(c=>c.dc).length,opdCount=out.filter(c=>c.opd).length;
+  let h=`<div style="font-size:13px;margin-bottom:8px">Ready to import <b>${out.length}</b> case(s)${dcCount?` — <span style="color:var(--t3)">${dcCount} discharged${opdCount?` (${opdCount} with ✅ OPD follow-up)`:''}</span>`:''}.</div>`;
   if(skippedNoName)h+=`<div style="font-size:12px;color:var(--t3);margin-bottom:3px">⚠ ${skippedNoName} row(s) skipped — no name</div>`;
-  if(skippedDup)h+=`<div style="font-size:12px;color:var(--t3);margin-bottom:8px">⚠ ${skippedDup} row(s) skipped — name already exists</div>`;
+  if(skippedDup)h+=`<div style="font-size:12px;color:var(--t3);margin-bottom:3px">⚠ ${skippedDup} row(s) skipped — name already exists</div>`;
+  if(skippedStatus)h+=`<div style="font-size:12px;color:var(--t3);margin-bottom:8px">⚠ ${skippedStatus} row(s) skipped — status wasn't IPD, OPD, or End</div>`;
   if(out.length){
     h+=`<div style="overflow-x:auto;margin-bottom:12px"><table class="stbl" style="min-width:520px"><thead><tr><th>Name</th><th>HN</th><th>Ward</th><th>Category</th><th>F/U</th><th>Status</th></tr></thead><tbody>`;
-    out.slice(0,8).forEach(c=>{h+=`<tr><td>${esc(c.nm)}</td><td>${esc(c.hn)}</td><td>${esc(c.wd)}</td><td>${esc(c.ty)}</td><td>${c.fu?fd(c.fu):'–'}</td><td>${c.dc?'🏠 DC':'Active'}</td></tr>`});
+    out.slice(0,8).forEach(c=>{h+=`<tr><td>${esc(c.nm)}</td><td>${esc(c.hn)}</td><td>${esc(c.wd)}</td><td>${esc(c.ty)}</td><td>${c.fu?fd(c.fu):'–'}</td><td>${c.opd?'🏠 DC · ✅ OPD':c.dc?'🏠 DC':'Active'}</td></tr>`});
     h+=`</tbody></table></div>`;
     if(out.length>8)h+=`<div style="font-size:11px;color:var(--t3);margin-bottom:10px">…and ${out.length-8} more</div>`;
   }
