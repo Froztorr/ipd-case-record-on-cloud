@@ -1888,7 +1888,8 @@ async function tickRem(cid,rid){
 }
 function remGroupHTML(g,done){
   return`<div class="card" style="cursor:default${done?';opacity:.72':''}">
-    <div class="cn" style="margin-bottom:6px">${esc(g.c.nm)} ${g.c.wd?`<span class="bh bwd">${esc(g.c.wd)}</span>`:''}</div>
+    <div class="cn" style="margin-bottom:6px">${esc(g.c.nm)} ${g.c.hn?`<span class="bh bhn">HN ${esc(g.c.hn)}</span>`:''} ${g.c.wd?`<span class="bh bwd">${esc(g.c.wd)}</span>`:''}</div>
+    ${g.c.dx?`<div class="cdx" style="margin-bottom:6px">${esc(g.c.dx)}</div>`:''}
     ${g.items.map(r=>`<div class="rem-item"><button class="rem-tick${done?' done':''}" onclick="tickRem('${g.c.id}','${r.id}')">${done?'✓':''}</button><div class="rem-txt${done?' done':''}">${esc(r.txt)}</div></div>`).join('')}
   </div>`;
 }
