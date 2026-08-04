@@ -595,6 +595,16 @@ input[type=date]{cursor:pointer}
 </div>
 
 <div class="toast" id="toast"></div>
+
+<div class="conf-wrap" id="update-log-wrap">
+  <div class="conf-box" style="text-align:left;max-width:340px">
+    <div class="conf-icon" style="text-align:center">🆕</div>
+    <div class="conf-title" style="text-align:center">What’s New</div>
+    <div id="update-log-body" class="conf-msg" style="text-align:left;margin-bottom:16px"></div>
+    <button class="sbmt" onclick="dismissUpdateLog()">Got it</button>
+  </div>
+</div>
+
 <div class="disclaimer">Unofficial — please use with caution</div>
 
 <div class="ov-wrap" id="ov-admin" onclick="bkd(event,'ov-admin')">
@@ -828,6 +838,7 @@ function startSession(uid,username){
   localStorage.setItem('rehab_user',username);
   showApp();
   subscribeData(uid);
+  setTimeout(showUpdateLogIfNeeded,300);
 }
 
 /* ── Restore session — show cache instantly, no loading screen ── */
@@ -840,7 +851,7 @@ if(savedUID){
   showApp();
   // subscribeData will render once more when defined, and sync if online
   // Use a tiny delay to let the main script define window.render first
-  setTimeout(()=>subscribeData(savedUID),0);
+  setTimeout(()=>{subscribeData(savedUID);showUpdateLogIfNeeded();},0);
 } else {
   showLogin('signin');
 }
@@ -1333,6 +1344,25 @@ function badges(){
   if(window.applyTabPrefs)applyTabPrefs();
 }
 window.badges=badges;
+
+/* ===== UPDATE LOG ===== */
+const UPDATE_LOG_VERSION='2026-08-04-copy-name-v1';
+const UPDATE_LOG_ITEMS=[
+  {date:'04/08/26',title:'Copy patient name + HN',desc:'Hold a patient name for 1 second to copy “Name HN” to clipboard.'}
+];
+function updateLogKey(){return _uid?`rehab_update_seen_${_uid}_${UPDATE_LOG_VERSION}`:null}
+function showUpdateLogIfNeeded(){
+  const key=updateLogKey();if(!key||localStorage.getItem(key))return;
+  const body=document.getElementById('update-log-body');
+  const wrap=document.getElementById('update-log-wrap');
+  if(!body||!wrap)return;
+  body.innerHTML=UPDATE_LOG_ITEMS.map(x=>`<div style="margin-bottom:10px"><div style="font-size:12px;color:var(--t3);font-weight:700">${x.date}</div><div style="font-size:14px;color:var(--t);font-weight:700;margin-top:2px">${x.title}</div><div style="font-size:13px;color:var(--t2);line-height:1.45;margin-top:3px">${x.desc}</div></div>`).join('');
+  wrap.classList.add('on');
+}
+function dismissUpdateLog(){
+  const key=updateLogKey();if(key)localStorage.setItem(key,'1');
+  const wrap=document.getElementById('update-log-wrap');if(wrap)wrap.classList.remove('on');
+}
 
 /* ===== LONG-PRESS COPY PATIENT NAME + HN ===== */
 async function copyText(txt){
