@@ -1121,7 +1121,7 @@ function card(c){
   return`<div class="card" onclick="openDet('${c.id}')">
     <div class="ca" style="background:${TK[c.ty]||'#6c6fff'}"></div>
     <div class="cr1">
-      <div class="cn" onpointerdown="nameHoldStart(event,'${c.id}')" onpointerup="nameHoldCancel()" onpointercancel="nameHoldCancel()" onpointerleave="nameHoldCancel()">${esc(c.nm)||'–'}</div>
+      <div class="cn" ontouchstart="nameHoldStart(event,'${c.id}')" ontouchend="nameHoldCancel(event)" ontouchcancel="nameHoldCancel(event)" onmousedown="nameHoldStart(event,'${c.id}')" onmouseup="nameHoldCancel(event)" onmouseleave="nameHoldCancel(event)">${esc(c.nm)||'–'}</div>
       <button class="opd-btn${(c.rem||[]).some(r=>!r.done)?' on':''}" onclick="event.stopPropagation();openRem('${c.id}')" title="Reminders">📝</button>
       <button class="opd-btn${_picIds.has(c.id)?' on':''}" onclick="event.stopPropagation();picClick('${c.id}')" title="Picture">📷</button>
       <button class="opd-btn${c.opd?' on':''}" onclick="event.stopPropagation();toggleOpd('${c.id}')" title="OPD appt set">✅</button>
@@ -1336,32 +1336,41 @@ window.badges=badges;
 
 /* ===== LONG-PRESS COPY PATIENT NAME + HN ===== */
 async function copyText(txt){
+  // iOS Safari is strict: use a real selectable textarea, visibly in the DOM,
+  // and keep it focused/selected before execCommand fallback.
+  const ta=document.createElement('textarea');
+  ta.value=txt;
+  ta.setAttribute('readonly','readonly');
+  ta.style.cssText='position:fixed;top:40%;left:12px;right:12px;width:calc(100% - 24px);height:44px;z-index:9999;font-size:16px;opacity:.01;background:white;color:black;-webkit-user-select:text;user-select:text;pointer-events:auto;';
+  document.body.appendChild(ta);
   try{
-    if(navigator.clipboard&&window.isSecureContext){await navigator.clipboard.writeText(txt);return true}
+    ta.focus({preventScroll:true});
+    ta.select();
+    ta.setSelectionRange(0,ta.value.length);
+    const ok=document.execCommand('copy');
+    if(ok){document.body.removeChild(ta);return true}
   }catch(e){}
   try{
-    const ta=document.createElement('textarea');
-    ta.value=txt;
-    ta.setAttribute('readonly','');
-    ta.style.position='fixed';ta.style.top='0';ta.style.left='0';ta.style.opacity='0';ta.style.pointerEvents='none';
-    document.body.appendChild(ta);
-    ta.focus();ta.select();ta.setSelectionRange(0,ta.value.length);
-    const ok=document.execCommand('copy');
-    document.body.removeChild(ta);
-    return ok;
-  }catch(e){return false}
+    if(navigator.clipboard&&window.isSecureContext){await navigator.clipboard.writeText(txt);document.body.removeChild(ta);return true}
+  }catch(e){}
+  document.body.removeChild(ta);
+  return false;
 }
-let _nameHoldTimer=null;
-function nameHoldCancel(){if(_nameHoldTimer){clearTimeout(_nameHoldTimer);_nameHoldTimer=null}}
+let _nameHoldTimer=null,_nameHoldCopied=false;
+function nameHoldCancel(e){
+  if(e){e.stopPropagation();if(_nameHoldCopied)e.preventDefault()}
+  if(_nameHoldTimer){clearTimeout(_nameHoldTimer);_nameHoldTimer=null}
+  setTimeout(()=>{_nameHoldCopied=false},80);
+}
 function nameHoldStart(e,id){
   e.stopPropagation();
   nameHoldCancel();
   _nameHoldTimer=setTimeout(()=>{
-    _nameHoldTimer=null;
+    _nameHoldTimer=null;_nameHoldCopied=true;
     const c=load().find(x=>x.id===id);if(!c)return;
     const txt=`${c.nm||''}${c.hn?' '+c.hn:''}`.trim();
     if(!txt)return;
-    copyText(txt).then(ok=>toast(ok?'📋 Copied '+txt:'⚠ Copy failed'));
+    copyText(txt).then(ok=>toast(ok?'📋 Copied '+txt:'Tap name once, then Copy if iPhone blocks auto-copy'));
   },1000);
 }
 
