@@ -1,6 +1,6 @@
-VIRUZ - PET SPRITES v3 (16-bit pixel art) - PNG part 2 of 4
+VIRUZ - PET SPRITES v3 (16-bit pixel art) - PNG part 4 of 4
 
-CONTAINS: hopbit, jetsquid, chitbug, echowing
+CONTAINS: orbling, haunbit
 
 HOW TO INSTALL
 1. Unzip this file.
