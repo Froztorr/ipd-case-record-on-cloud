@@ -1,34 +1,15 @@
-VIRUZ - PET SPRITES v3 (16-bit pixel art) - ANIMATED GIF part 4 of 4
+VIRUZ - monster sprites, re-cleaned background pass
+===================================================
 
-CONTAINS: orbling, haunbit
-
-WHAT THESE ARE
-Idle "breathing" animations. Each sprite gently squashes and stretches on a
-1.2 second loop while its feet stay planted on the ground.
-
-SPEC: 512x512 animated GIF, transparent background, loops forever,
-      1200 ms per cycle. Identical framing and palette to the matching PNG.
+Fixes: holes punched through pale/light colours (vampire faces, tank_imp
+hull, flying_fish body) and stray fragments bled in from neighbouring
+sheet cells (the shard beside butler_vamp).
 
 HOW TO INSTALL
-1. Unzip this file.
-2. On github.com open your repo, then Add file > Upload files.
-   Drag in the `assets` folder from this unzipped part.
-3. ONE CODE CHANGE is required, because these are .gif and not .png.
-   In src/sprites.js, spriteV2Path() currently ends with:
+  1. Unzip.
+  2. You get an "assets" folder. Drag it into the repo root on GitHub
+     (Add file > Upload files). Same folder + file names as the current
+     art, so everything overwrites in place.
 
-       return `${ART2_BASE}/${speciesId}/${file}.png`;
-
-   Change `.png` to `.gif`:
-
-       return `${ART2_BASE}/${speciesId}/${file}.gif`;
-
-   That single edit switches every pet over to the animated versions.
-   Do this AFTER uploading the GIFs, or the images will 404.
-
-TIP: keep the PNG pack installed too. The GIFs sit alongside the PNGs
-(same folder, same names, different extension), so you can flip between
-static and animated by changing that one line back and forth.
-
-FILES PER SPECIES: 20 = 5 forms x 4 attributes
-  forms .... stage1, overclock, bulwark, phantom, corrupted
-  attrs .... green, red, yellow, white
+Files are assets/sprites/<monster>/still.png and .../still.gif
+512x512, transparent, 12-frame 1.2s looping idle breathing cycle.
