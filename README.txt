@@ -1,6 +1,6 @@
-VIRUZ - PET SPRITES v3 (16-bit pixel art) - ANIMATED GIF part 1 of 4
+VIRUZ - PET SPRITES v3 (16-bit pixel art) - ANIMATED GIF part 2 of 4
 
-CONTAINS: blobyte, inkarm, nulworm, clampr
+CONTAINS: hopbit, jetsquid, chitbug, echowing
 
 WHAT THESE ARE
 Idle "breathing" animations. Each sprite gently squashes and stretches on a
