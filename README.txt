@@ -1,6 +1,6 @@
-VIRUZ - PET SPRITES v3 (16-bit pixel art) - ANIMATED GIF part 3 of 4
+VIRUZ - PET SPRITES v3 (16-bit pixel art) - ANIMATED GIF part 4 of 4
 
-CONTAINS: dustmoth, finbyte, glitchimp, spikeling
+CONTAINS: orbling, haunbit
 
 WHAT THESE ARE
 Idle "breathing" animations. Each sprite gently squashes and stretches on a
