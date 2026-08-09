@@ -55,6 +55,18 @@ body {
 .spin{width:32px;height:32px;border:3px solid var(--bo2);border-top-color:var(--a);border-radius:50%;animation:spin .7s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 .load-txt{font-size:14px;color:var(--t2)}
+
+/* PRELOAD CACHE */
+#preload-screen{position:fixed;inset:0;z-index:600;background:#16083a;display:none;flex-direction:column;align-items:center;justify-content:center;gap:24px;padding:28px;text-align:center}
+#preload-screen.on{display:flex}
+.preload-bars{height:120px;display:flex;align-items:center;justify-content:center;gap:10px}
+.preload-bars span{width:8px;border-radius:9px;background:#ff4ff3;box-shadow:0 0 14px rgba(255,79,243,.55);animation:prebar 1s ease-in-out infinite}
+.preload-bars span:nth-child(1){height:64px;animation-delay:-.45s}.preload-bars span:nth-child(2){height:88px;animation-delay:-.30s}.preload-bars span:nth-child(3){height:76px;animation-delay:-.15s}.preload-bars span:nth-child(4){height:110px;animation-delay:0s}.preload-bars span:nth-child(5){height:82px;animation-delay:.15s}.preload-bars span:nth-child(6){height:66px;animation-delay:.30s}
+@keyframes prebar{0%,100%{transform:scaleY(.58);opacity:.65}50%{transform:scaleY(1);opacity:1}}
+.preload-title{font-size:18px;font-weight:800;letter-spacing:8px;color:#d9d2ff;text-transform:uppercase;margin-left:8px}
+.preload-msg{font-size:13px;color:#a79ed2;line-height:1.45;max-width:320px}
+.preload-skip{padding:11px 18px;border-radius:999px;background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.20);color:#fff;font-size:13px;font-weight:700;cursor:pointer}
+.preload-skip:active{opacity:.7}
 /* HEADER */
 #hdr{position:sticky;top:0;z-index:50;background:var(--bg);border-bottom:1px solid var(--bo)}
 .htop{display:flex;align-items:center;justify-content:space-between;padding:10px 16px 0}
@@ -267,6 +279,13 @@ input[type=date]{cursor:pointer}
 </style>
 </head>
 <body>
+
+<div id="preload-screen">
+  <div class="preload-bars" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span></div>
+  <div class="preload-title">LOADING</div>
+  <div class="preload-msg" id="preload-msg">Pre-downloading your account data for offline use...</div>
+  <button class="preload-skip" onclick="skipPreload()">Use saved phone data</button>
+</div>
 
 <div id="login-screen">
   <button class="theme-toggle-btn" onclick="toggleTheme()" style="position:absolute; top:calc(var(--saf-t) + 16px); right:20px; background:var(--s2); border:1px solid var(--bo); border-radius:50%; width:36px; height:36px; font-size:16px; cursor:pointer; display:flex; align-items:center; justify-content:center; color:var(--t)">☀️</button>
@@ -550,7 +569,9 @@ input[type=date]{cursor:pointer}
   </div>
   <div style="padding:0 16px 16px;border-top:1px solid var(--bo);margin-top:4px">
    <div style="font-size:11px;color:var(--t3);font-weight:600;text-transform:uppercase;letter-spacing:.4px;padding:14px 0 8px">Migrate existing records</div>
+   <button class="expbtn" style="width:100%;justify-content:center;box-sizing:border-box" onclick="exportCasesExcel()">📤 Export all cases to Excel</button>
    <button class="expbtn" style="width:100%;justify-content:center;box-sizing:border-box" onclick="cls('ov-settings');setTimeout(openImport,180)">📥 Import cases from Google Sheet / Excel / CSV</button>
+   <div style="font-size:11px;color:var(--t3);line-height:1.4;text-align:center">Use Export before changing accounts, then Import the Excel file in the new account.</div>
   </div>
  </div>
 </div>
@@ -843,15 +864,52 @@ function startSession(uid,username){
 
 /* ── Restore session — show cache instantly, no loading screen ── */
 const savedUID=localStorage.getItem('rehab_uid');
-if(savedUID){
-  _uid=savedUID;
-  // Load cache + any queued offline changes immediately into memory
+let _preloadSkipped=false;
+function showPreload(){
+  document.getElementById('login-screen').classList.add('h');
+  document.getElementById('loading').classList.add('h');
+  document.getElementById('app').style.display='none';
+  document.getElementById('preload-screen').classList.add('on');
+}
+function hidePreload(){document.getElementById('preload-screen').classList.remove('on')}
+window.skipPreload=function(){
+  if(!savedUID)return;
+  _preloadSkipped=true;
   const cached=loadLocalCache(savedUID)||[];
   window._cases=mergeCacheWithQueue(savedUID,cached);
-  showApp();
-  // subscribeData will render once more when defined, and sync if online
-  // Use a tiny delay to let the main script define window.render first
-  setTimeout(()=>{subscribeData(savedUID);showUpdateLogIfNeeded();},0);
+  hidePreload();showApp();
+  setTimeout(()=>{window.render&&window.render();window.badges&&window.badges();flushQueue(savedUID);showUpdateLogIfNeeded();},0);
+};
+async function restoreSessionWithPreload(uid){
+  _uid=uid;
+  showPreload();
+  const cached=loadLocalCache(uid)||[];
+  const minDelay=new Promise(r=>setTimeout(r,900));
+  const cloudLoad=(async()=>{
+    if(!navigator.onLine)throw new Error('offline');
+    await flushQueue(uid);
+    const snap=await db.collection('users').doc(uid).collection('cases').orderBy('created','desc').get({source:'server'});
+    const fresh=snap.docs.map(d=>({id:d.id,...d.data()}));
+    saveLocalCache(uid,fresh);
+    return mergeCacheWithQueue(uid,fresh);
+  })();
+  try{
+    const fresh=await Promise.race([cloudLoad,new Promise((_,rej)=>setTimeout(()=>rej(new Error('slow')),9000))]);
+    await minDelay;
+    if(_preloadSkipped)return;
+    window._cases=fresh;
+    hidePreload();showApp();
+    setTimeout(()=>{window.render&&window.render();window.badges&&window.badges();showUpdateLogIfNeeded();},0);
+  }catch(e){
+    await minDelay;
+    if(_preloadSkipped)return;
+    window._cases=mergeCacheWithQueue(uid,cached);
+    hidePreload();showApp();
+    setTimeout(()=>{window.render&&window.render();window.badges&&window.badges();showUpdateLogIfNeeded();toast(navigator.onLine?'⚠ Cloud preload failed — using saved phone data':'Offline — using saved phone data');},0);
+  }
+}
+if(savedUID){
+  restoreSessionWithPreload(savedUID);
 } else {
   showLogin('signin');
 }
@@ -1659,6 +1717,28 @@ function expCSV(){
   const a=document.createElement('a');
   a.href=URL.createObjectURL(new Blob(['\uFEFF'+[hdr.join(','),...rows].join('\n')],{type:'text/csv;charset=utf-8'}));
   a.download=`rehab_${today()}.csv`;a.click();toast('⬇ CSV exported');
+}
+
+async function exportCasesExcel(){
+  const cases=load();
+  if(!cases.length){toast('⚠ No cases to export');return}
+  try{
+    await loadXLSXLib();
+    const headers=['Patient Name','HN','Ward','Diagnosis','Category','Follow-up Date','First Visit','Status','VIP','Notes','Created','Updated'];
+    const rows=cases.map(c=>[
+      c.nm||'',c.hn||'',c.wd||'',c.dx||'',c.ty||'',c.fu||'',c.firstVisit||(c.created||'').split('T')[0]||'',
+      c.opd?'OPD':(c.dc?'End':'IPD'),c.st?'Yes':'No',c.nt||'',(c.created||'').split('T')[0]||'',(c.upd||'').split('T')[0]||''
+    ]);
+    const wb=XLSX.utils.book_new();
+    const ws=XLSX.utils.aoa_to_sheet([headers,...rows]);
+    ws['!cols']=[{wch:24},{wch:12},{wch:14},{wch:28},{wch:14},{wch:14},{wch:14},{wch:10},{wch:8},{wch:36},{wch:12},{wch:12}];
+    XLSX.utils.book_append_sheet(wb,ws,'Cases');
+    XLSX.writeFile(wb,`rehab_cases_export_${today()}.xlsx`);
+    toast('📤 Excel exported — import it in the new account');
+  }catch(e){
+    console.error(e);
+    toast('⚠ Excel export failed');
+  }
 }
 
 /* ===== UTILS ===== */
