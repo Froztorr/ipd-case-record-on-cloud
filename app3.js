@@ -53,7 +53,13 @@ function applyTabPrefs(){
   TAB_IDS.forEach(id=>{const el=document.getElementById('t-'+id);if(el)el.style.display=tabVisible(id)?'':'none'});
   if(!tabVisible(tab)){const first=TAB_IDS.find(tabVisible);if(first)go(first)}
 }
-function openSettings(){renderSettings();document.getElementById('keep-pics-chk').checked=keepPicsOnDischarge();open('ov-settings')}
+function openSettings(){
+  renderSettings();
+  document.getElementById('keep-pics-chk').checked=keepPicsOnDischarge();
+  const wchk=document.getElementById('watch-enable-chk');
+  if(wchk&&window.watchEnabled)wchk.checked=window.watchEnabled();
+  open('ov-settings');
+}
 function renderSettings(){
   const pr=tabPrefs();
   set('settings-body',TAB_IDS.map(id=>`

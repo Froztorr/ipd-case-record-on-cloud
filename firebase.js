@@ -29,6 +29,7 @@ const db=firebase.firestore();
 window.db=db;
 let _uid=null,_unsub=null,_fpUser=null,_fpData=null;
 window._cases=[];
+window._incomingWatchRequests=[];
 // Expose for visibility handler
 Object.defineProperty(window,'_uid',{get:()=>_uid,set:v=>_uid=v});
 Object.defineProperty(window,'_unsub',{get:()=>_unsub,set:v=>_unsub=v});
@@ -84,6 +85,9 @@ window.authMode=function(m){
 /* ── Subscribe data ── */
 const CACHE_KEY=uid=>`rehab_cache_${uid}`;
 const QUEUE_KEY=uid=>`rehab_queue_${uid}`;
+// Watched (shared-in) cases — cases owned by someone else who granted this account access
+const WCACHE_KEY=uid=>`rehab_wcache_${uid}`;
+const WQUEUE_KEY=uid=>`rehab_wqueue_${uid}`;
 
 function loadLocalCache(uid){
   try{const d=localStorage.getItem(CACHE_KEY(uid));return d?JSON.parse(d):null}catch{return null}
@@ -99,21 +103,67 @@ function saveQueue(uid,q){
 }
 function clearQueue(uid){localStorage.removeItem(QUEUE_KEY(uid))}
 
+function loadWatchedCache(uid){
+  try{const d=localStorage.getItem(WCACHE_KEY(uid));return d?JSON.parse(d):null}catch{return null}
+}
+function saveWatchedCache(uid,cases){
+  try{localStorage.setItem(WCACHE_KEY(uid),JSON.stringify(cases))}catch(e){console.warn('Watched cache write failed',e)}
+}
+function loadWQueue(uid){
+  try{const d=localStorage.getItem(WQUEUE_KEY(uid));return d?JSON.parse(d):{saves:{},deletes:[]}}catch{return{saves:{},deletes:[]}}
+}
+function saveWQueue(uid,q){
+  try{localStorage.setItem(WQUEUE_KEY(uid),JSON.stringify(q))}catch(e){console.warn('Watched queue write failed',e)}
+}
+function clearWQueue(uid){localStorage.removeItem(WQUEUE_KEY(uid))}
+
+// Rebuild window._cases straight from the on-disk caches, with no queue merge.
+// Use this right after writing to a cache (applyToCache etc.) — at that instant
+// the cache already reflects the edit, and merging the queue on top would
+// re-apply whatever OLDER entry is still queued for that same id (the queue for
+// *this* edit hasn't been written yet — that happens right after, back in
+// _saveToCloud/_saveSharedCase), clobbering the edit that was just made.
+function rebuildCasesViewFromCacheOnly(uid){
+  window._cases=[...(loadLocalCache(uid)||[]),...(loadWatchedCache(uid)||[])];
+}
 function applyToCache(uid,c){
   // Replace single case in cache — no pile-up
   const cases=loadLocalCache(uid)||[];
   const idx=cases.findIndex(x=>x.id===c.id);
   if(idx>=0)cases[idx]=c;else cases.unshift(c);
   saveLocalCache(uid,cases);
-  window._cases=cases;
+  rebuildCasesViewFromCacheOnly(uid);
 }
 function removeFromCache(uid,id){
   const cases=(loadLocalCache(uid)||[]).filter(x=>x.id!==id);
   saveLocalCache(uid,cases);
-  window._cases=cases;
+  rebuildCasesViewFromCacheOnly(uid);
+}
+function applyToWatchedCache(uid,c){
+  const cases=loadWatchedCache(uid)||[];
+  const idx=cases.findIndex(x=>x.id===c.id);
+  if(idx>=0)cases[idx]=c;else cases.unshift(c);
+  saveWatchedCache(uid,cases);
+  rebuildCasesViewFromCacheOnly(uid);
+}
+function removeFromWatchedCache(uid,id){
+  const cases=(loadWatchedCache(uid)||[]).filter(x=>x.id!==id);
+  saveWatchedCache(uid,cases);
+  rebuildCasesViewFromCacheOnly(uid);
 }
 
-let _syncTimer=null;
+// Combined view used when (re)loading from the server or from disk at startup —
+// merges any still-queued (not yet flushed) offline edits on top, in case a
+// prior flush didn't fully complete. My own cases + cases someone else has
+// handed off to me to watch. This is the array the rest of the app renders
+// from (window._cases) — see rToday/rDone/etc in app1.js.
+function rebuildCasesView(uid){
+  const own=mergeCacheWithQueue(uid,loadLocalCache(uid)||[]);
+  const watched=mergeWatchedCacheWithQueue(uid,loadWatchedCache(uid)||[]);
+  window._cases=[...own,...watched];
+}
+
+let _syncTimer=null,_wSyncTimer=null;
 async function flushQueue(uid){
   if(!navigator.onLine)return;
   const q=loadQueue(uid);
@@ -132,20 +182,37 @@ async function flushQueue(uid){
   }catch(e){setSyncBusy(false);console.warn('Flush failed',e)}
 }
 
+// Same as flushQueue but for edits made to cases someone else owns (I'm just the
+// watcher) — each queued entry carries its own ownerUid so it writes back to the
+// owner's users/{ownerUid}/cases/{id} doc, not mine.
+async function flushWQueue(uid){
+  if(!navigator.onLine)return;
+  const q=loadWQueue(uid);
+  const saves=Object.values(q.saves);
+  const deletes=q.deletes;
+  if(!saves.length&&!deletes.length)return;
+  try{
+    await Promise.all([
+      ...saves.map(e=>db.collection('users').doc(e.ownerUid).collection('cases').doc(e.c.id).set(e.c)),
+      ...deletes.map(e=>db.collection('users').doc(e.ownerUid).collection('cases').doc(e.id).delete())
+    ]);
+    clearWQueue(uid);
+  }catch(e){console.warn('Shared-case flush failed',e)}
+}
+
 function subscribeData(uid){
   window.subscribeData=subscribeData;
   if(_unsub)_unsub();
 
   // Always load cache first — works offline and online
-  const cached=loadLocalCache(uid);
-  const cacheWithQueue=mergeCacheWithQueue(uid,cached||[]);
-  window._cases=cacheWithQueue;
+  rebuildCasesView(uid);
   // Render immediately from cache — never wait for network
   if(window.render)window.render();
   if(window.badges)window.badges();
 
-  // Flush queue if online
+  // Flush queues if online
   flushQueue(uid);
+  flushWQueue(uid);
 
   // Background cloud fetch if online — updates cache silently
   refreshFromCloud({toast:false});
@@ -165,10 +232,46 @@ function mergeCacheWithQueue(uid,cached){
   return merged;
 }
 
+// Same idea for the watched-case cache — queued entries store {c, ownerUid, ownerUsername}
+function mergeWatchedCacheWithQueue(uid,cachedWatched){
+  const q=loadWQueue(uid);
+  let merged=[...cachedWatched];
+  Object.values(q.saves).forEach(e=>{
+    const idx=merged.findIndex(x=>x.id===e.c.id);
+    const decorated={...e.c,_ownerUid:e.ownerUid,_ownerUsername:e.ownerUsername||(idx>=0?merged[idx]._ownerUsername:''),_shared:true};
+    if(idx>=0)merged[idx]=decorated;else merged.unshift(decorated);
+  });
+  q.deletes.forEach(e=>{merged=merged.filter(x=>x.id!==e.id)});
+  return merged;
+}
+
 // Re-fetch when coming back online
 window.addEventListener('online',()=>{ if(_uid)refreshFromCloud({toast:false}).then(ok=>{if(ok)window.toast&&window.toast('☁️ Back online — synced')}); });
 
 function setSyncBusy(b){document.querySelectorAll('.sync-dot').forEach(d=>d.classList.toggle('busy',b))}
+
+// Pulls in any cases someone else has handed off to me (accepted shares), and any
+// pending incoming requests I still need to accept/decline. Best-effort — wrapped
+// so a failure here never breaks the normal case refresh.
+async function refreshWatchData(uid){
+  try{
+    const[pendingSnap,activeSnap]=await Promise.all([
+      db.collection('caseShares').where('toUid','==',uid).where('status','==','pending').get(),
+      db.collection('caseShares').where('toUid','==',uid).where('status','==','active').get()
+    ]);
+    window._incomingWatchRequests=pendingSnap.docs.map(d=>({id:d.id,...d.data()}));
+    const activeGrants=activeSnap.docs.map(d=>({id:d.id,...d.data()}));
+    const caseDocs=await Promise.all(activeGrants.map(async g=>{
+      try{
+        const snap=await db.collection('users').doc(g.ownerUid).collection('cases').doc(g.caseId).get();
+        if(!snap.exists)return null;
+        return{...snap.data(),id:snap.id,_ownerUid:g.ownerUid,_ownerUsername:g.ownerUsername,_shared:true};
+      }catch(e){return null}
+    }));
+    saveWatchedCache(uid,caseDocs.filter(Boolean));
+  }catch(e){console.warn('Watch data refresh failed',e)}
+}
+window.refreshWatchData=refreshWatchData;
 
 async function refreshFromCloud(opts={}){
   if(!_uid)return false;
@@ -176,13 +279,16 @@ async function refreshFromCloud(opts={}){
   setSyncBusy(true);
   try{
     await flushQueue(_uid);
+    await flushWQueue(_uid);
     const snap=await db.collection('users').doc(_uid).collection('cases').orderBy('created','desc').get({source:'server'});
     const fresh=snap.docs.map(d=>({id:d.id,...d.data()}));
     saveLocalCache(_uid,fresh);
-    window._cases=mergeCacheWithQueue(_uid,fresh);
+    await refreshWatchData(_uid);
+    rebuildCasesView(_uid);
     setSyncBusy(false);
     if(window.render)window.render();
     if(window.badges)window.badges();
+    if(window.renderWatchInbox)window.renderWatchInbox();
     if(opts.toast!==false)window.toast&&window.toast('↻ Refreshed');
     return true;
   }catch(e){
@@ -215,38 +321,38 @@ function hidePreload(){document.getElementById('preload-screen').classList.remov
 window.skipPreload=function(){
   if(!savedUID)return;
   _preloadSkipped=true;
- 
-  const cached=loadLocalCache(savedUID)||[];
-  window._cases=mergeCacheWithQueue(savedUID,cached);
+
+  rebuildCasesView(savedUID);
   hidePreload();showApp();
-  setTimeout(()=>{window.render&&window.render();window.badges&&window.badges();flushQueue(savedUID);showUpdateLogIfNeeded();},0);
+  setTimeout(()=>{window.render&&window.render();window.badges&&window.badges();window.renderWatchInbox&&window.renderWatchInbox();flushQueue(savedUID);flushWQueue(savedUID);showUpdateLogIfNeeded();},0);
 };
 async function restoreSessionWithPreload(uid){
   _uid=uid;
   showPreload();
-  const cached=loadLocalCache(uid)||[];
   const minDelay=new Promise(r=>setTimeout(r,900));
   const cloudLoad=(async()=>{
     if(!navigator.onLine)throw new Error('offline');
     await flushQueue(uid);
+    await flushWQueue(uid);
     const snap=await db.collection('users').doc(uid).collection('cases').orderBy('created','desc').get({source:'server'});
     const fresh=snap.docs.map(d=>({id:d.id,...d.data()}));
     saveLocalCache(uid,fresh);
-    return mergeCacheWithQueue(uid,fresh);
+    await refreshWatchData(uid);
+    return fresh;
   })();
   try{
-    const fresh=await Promise.race([cloudLoad,new Promise((_,rej)=>setTimeout(()=>rej(new Error('slow')),9000))]);
+    await Promise.race([cloudLoad,new Promise((_,rej)=>setTimeout(()=>rej(new Error('slow')),9000))]);
     await minDelay;
     if(_preloadSkipped)return;
-    window._cases=fresh;
+    rebuildCasesView(uid);
     hidePreload();showApp();
-    setTimeout(()=>{window.render&&window.render();window.badges&&window.badges();showUpdateLogIfNeeded();},0);
+    setTimeout(()=>{window.render&&window.render();window.badges&&window.badges();window.renderWatchInbox&&window.renderWatchInbox();showUpdateLogIfNeeded();},0);
   }catch(e){
     await minDelay;
     if(_preloadSkipped)return;
-    window._cases=mergeCacheWithQueue(uid,cached);
+    rebuildCasesView(uid);
     hidePreload();showApp();
-    setTimeout(()=>{window.render&&window.render();window.badges&&window.badges();showUpdateLogIfNeeded();toast(navigator.onLine?'⚠ Cloud preload failed — using saved phone data':'Offline — using saved phone data');},0);
+    setTimeout(()=>{window.render&&window.render();window.badges&&window.badges();window.renderWatchInbox&&window.renderWatchInbox();showUpdateLogIfNeeded();toast(navigator.onLine?'⚠ Cloud preload failed — using saved phone data':'Offline — using saved phone data');},0);
   }
 }
 if(savedUID){
@@ -409,8 +515,11 @@ window.doSignOut=()=>{
     'Sign out',()=>{
       if(_unsub){_unsub();_unsub=null}
       // Clean up local cache and queue on sign out
-      if(_uid){localStorage.removeItem(CACHE_KEY(_uid));localStorage.removeItem(QUEUE_KEY(_uid))}
-      window._cases=[];_uid=null;
+      if(_uid){
+        localStorage.removeItem(CACHE_KEY(_uid));localStorage.removeItem(QUEUE_KEY(_uid));
+        localStorage.removeItem(WCACHE_KEY(_uid));localStorage.removeItem(WQUEUE_KEY(_uid));
+      }
+      window._cases=[];window._incomingWatchRequests=[];_uid=null;
       localStorage.removeItem('rehab_uid');
       localStorage.removeItem('rehab_user');
       showLogin('signin');
@@ -422,6 +531,9 @@ window.doSignOut=()=>{
 // Save: write to local cache + queue immediately, flush to cloud if online
 window._saveToCloud=async(c)=>{
   if(!_uid)return;
+  // Case belongs to someone else's account (I'm watching it, not the owner) —
+  // route through the shared-case path so it lands back on THEIR doc.
+  if(c._ownerUid&&c._ownerUid!==_uid)return window._saveSharedCase(c);
   // 1. Update local cache instantly
   applyToCache(_uid,c);
   window.render&&window.render();
@@ -438,9 +550,46 @@ window._saveToCloud=async(c)=>{
   }
 };
 
-// Delete: remove from cache immediately, queue deletion
-window._deleteFromCloud=async(id)=>{
+// Same as _saveToCloud, but for a case owned by another account that has been
+// handed off to me to watch — writes back to users/{ownerUid}/cases/{id} instead
+// of my own collection, via a separate local cache + queue.
+window._saveSharedCase=async(c)=>{
   if(!_uid)return;
+  const ownerUid=c._ownerUid,ownerUsername=c._ownerUsername;
+  const clean={...c};
+  delete clean._ownerUid;delete clean._ownerUsername;delete clean._shared;
+  applyToWatchedCache(_uid,{...clean,_ownerUid:ownerUid,_ownerUsername:ownerUsername,_shared:true});
+  window.render&&window.render();
+  window.badges&&window.badges();
+  const q=loadWQueue(_uid);
+  q.saves[clean.id]={c:clean,ownerUid,ownerUsername};
+  q.deletes=q.deletes.filter(e=>e.id!==clean.id);
+  saveWQueue(_uid,q);
+  if(navigator.onLine){
+    clearTimeout(_wSyncTimer);
+    _wSyncTimer=setTimeout(()=>flushWQueue(_uid),1500);
+  }
+};
+
+// Delete: remove from cache immediately, queue deletion
+// ownerUid: pass this when deleting a shared-in case (someone else's doc) —
+// omit (or pass your own uid) for a case you own.
+window._deleteFromCloud=async(id,ownerUid)=>{
+  if(!_uid)return;
+  if(ownerUid&&ownerUid!==_uid){
+    removeFromWatchedCache(_uid,id);
+    window.render&&window.render();
+    window.badges&&window.badges();
+    const q=loadWQueue(_uid);
+    delete q.saves[id];
+    if(!q.deletes.some(e=>e.id===id))q.deletes.push({id,ownerUid});
+    saveWQueue(_uid,q);
+    if(navigator.onLine){
+      clearTimeout(_wSyncTimer);
+      _wSyncTimer=setTimeout(()=>flushWQueue(_uid),1500);
+    }
+    return;
+  }
   removeFromCache(_uid,id);
   window.render&&window.render();
   window.badges&&window.badges();
@@ -459,7 +608,7 @@ window._clearAllFromCloud=async()=>{
   if(!_uid)return;
   saveLocalCache(_uid,[]);
   clearQueue(_uid);
-  window._cases=[];
+  rebuildCasesView(_uid);
   window.render&&window.render();
   window.badges&&window.badges();
   if(navigator.onLine){
@@ -470,4 +619,115 @@ window._clearAllFromCloud=async()=>{
       setSyncBusy(false);
     }catch(e){setSyncBusy(false);console.warn(e)}
   }
+};
+
+/* ═══════════ WATCH MY CASE — hand a patient off to a colleague ═══════════
+   A share is a doc in the top-level "caseShares" collection:
+     {id, caseId, ownerUid, ownerUsername, caseNm, caseHn,
+      toUid, toUsername, status:'pending'|'active'|'declined'|'ended', ...}
+   The owner's case doc also carries a denormalized `share` field
+   ({id,status,toUid,toUsername}) so their own device can render status
+   without an extra query. These relationship actions all require being
+   online (consistent with the rest of the app's cross-account operations
+   like sign-up/sign-in/admin — see doSignUp/adminDeleteOne above); routine
+   editing of a shared case's content still works fully offline via
+   _saveSharedCase/_deleteFromCloud above. */
+function myUsername(){return localStorage.getItem('rehab_user')||''}
+
+window.sendWatchRequest=async function(caseId,toUsernameRaw){
+  if(!_uid)return{ok:false,msg:'Not signed in'};
+  if(!navigator.onLine)return{ok:false,msg:'⚠ Requires an internet connection'};
+  const toUsername=(toUsernameRaw||'').trim().toLowerCase();
+  if(!toUsername)return{ok:false,msg:'Enter a username'};
+  if(toUsername===myUsername())return{ok:false,msg:"You can't send a request to yourself"};
+  const c=(window._cases||[]).find(x=>x.id===caseId&&!x._shared);
+  if(!c)return{ok:false,msg:'Case not found'};
+  if(c.share&&(c.share.status==='pending'||c.share.status==='active'))return{ok:false,msg:'This case is already shared'};
+  try{
+    const accSnap=await db.collection('accounts').doc(toUsername).get();
+    if(!accSnap.exists)return{ok:false,msg:'No account found with that username'};
+    const toUid=accSnap.data().uid;
+    if(toUid===_uid)return{ok:false,msg:"You can't send a request to yourself"};
+    const id=uid_();
+    const grant={id,caseId,ownerUid:_uid,ownerUsername:myUsername(),caseNm:c.nm||'',caseHn:c.hn||'',toUid,toUsername,status:'pending',createdAt:new Date().toISOString()};
+    await db.collection('caseShares').doc(id).set(grant);
+    await window._saveToCloud({...c,share:{id,status:'pending',toUid,toUsername}});
+    return{ok:true,msg:'✅ Request sent to @'+toUsername};
+  }catch(e){console.error(e);return{ok:false,msg:'⚠ Error — check connection'}}
+};
+
+window.cancelWatchRequest=async function(caseId){
+  if(!navigator.onLine){window.toast&&window.toast('⚠ Requires an internet connection');return}
+  const c=(window._cases||[]).find(x=>x.id===caseId&&!x._shared);
+  if(!c||!c.share)return;
+  try{
+    await db.collection('caseShares').doc(c.share.id).update({status:'ended',endedAt:new Date().toISOString(),endedBy:'owner'});
+  }catch(e){console.warn(e)}
+  await window._saveToCloud({...c,share:null});
+  window.toast&&window.toast('✕ Cancelled');
+};
+
+window.revokeWatchAccess=async function(caseId){
+  if(!navigator.onLine){window.toast&&window.toast('⚠ Requires an internet connection');return}
+  const c=(window._cases||[]).find(x=>x.id===caseId&&!x._shared);
+  if(!c||!c.share)return;
+  try{
+    await db.collection('caseShares').doc(c.share.id).update({status:'ended',endedAt:new Date().toISOString(),endedBy:'owner'});
+  }catch(e){console.warn(e)}
+  await window._saveToCloud({...c,share:null});
+  window.toast&&window.toast('🔒 Access revoked');
+};
+
+window.acceptWatchRequest=async function(shareId){
+  if(!navigator.onLine){window.toast&&window.toast('⚠ Requires an internet connection');return}
+  try{
+    const doc=await db.collection('caseShares').doc(shareId).get();
+    if(!doc.exists){window.toast&&window.toast('⚠ Request no longer exists');return}
+    const g=doc.data();
+    if(g.toUid!==_uid)return;
+    await db.collection('caseShares').doc(shareId).update({status:'active',respondedAt:new Date().toISOString()});
+    const caseRef=db.collection('users').doc(g.ownerUid).collection('cases').doc(g.caseId);
+    const caseSnap=await caseRef.get();
+    if(caseSnap.exists)await caseRef.update({share:{id:shareId,status:'active',toUid:g.toUid,toUsername:g.toUsername}});
+    window.toast&&window.toast('🫱🏻‍🫲🏾 Now watching '+(g.caseNm||'patient'));
+    await refreshWatchData(_uid);rebuildCasesView(_uid);
+    window.render&&window.render();window.badges&&window.badges();window.renderWatchInbox&&window.renderWatchInbox();
+  }catch(e){console.error(e);window.toast&&window.toast('⚠ Error — check connection')}
+};
+
+window.declineWatchRequest=async function(shareId){
+  if(!navigator.onLine){window.toast&&window.toast('⚠ Requires an internet connection');return}
+  try{
+    const doc=await db.collection('caseShares').doc(shareId).get();
+    if(doc.exists){
+      const g=doc.data();
+      await db.collection('caseShares').doc(shareId).update({status:'declined',respondedAt:new Date().toISOString()});
+      const caseRef=db.collection('users').doc(g.ownerUid).collection('cases').doc(g.caseId);
+      const caseSnap=await caseRef.get();
+      if(caseSnap.exists&&caseSnap.data().share&&caseSnap.data().share.id===shareId)await caseRef.update({share:null});
+    }
+    await refreshWatchData(_uid);rebuildCasesView(_uid);
+    window.render&&window.render();window.badges&&window.badges();window.renderWatchInbox&&window.renderWatchInbox();
+    window.toast&&window.toast('Declined');
+  }catch(e){console.error(e);window.toast&&window.toast('⚠ Error — check connection')}
+};
+
+window.giveBackCase=async function(caseId){
+  if(!navigator.onLine){window.toast&&window.toast('⚠ Requires an internet connection to give back');return}
+  const c=(window._cases||[]).find(x=>x.id===caseId&&x._shared);
+  if(!c)return;
+  try{
+    if(c.share&&c.share.id)await db.collection('caseShares').doc(c.share.id).update({status:'ended',endedAt:new Date().toISOString(),endedBy:'watcher'});
+    await db.collection('users').doc(c._ownerUid).collection('cases').doc(c.id).update({share:null});
+  }catch(e){console.warn(e);window.toast&&window.toast('⚠ Error — check connection');return}
+  removeFromWatchedCache(_uid,c.id); // already rebuilds window._cases
+  window.render&&window.render();window.badges&&window.badges();
+  window.toast&&window.toast('↩ Case given back');
+};
+
+function watchEnabled(){return localStorage.getItem('rehab_watch_enabled')==='1'}
+window.watchEnabled=watchEnabled;
+window.setWatchEnabled=function(v){
+  localStorage.setItem('rehab_watch_enabled',v?'1':'0');
+  window.render&&window.render();
 };

@@ -4,6 +4,7 @@ function openDet(id){
   document.getElementById('det-name').textContent=c.nm||'–';
   const fus=c.dc?`<span style="color:var(--t3)">DC ${fd(c.dcDate)}</span>`:c.fu?fd(c.fu):'–';
   document.getElementById('det-body').innerHTML=`
+  ${window.shareStatusBlockHTML?window.shareStatusBlockHTML(c):''}
   <div class="dsec"><div class="dgrid">
     <div><div class="dl">HN</div><div class="dv">${c.hn||'–'}</div></div>
     <div><div class="dl">Ward</div><div class="dv">${c.wd||'–'}</div></div>
@@ -15,6 +16,7 @@ function openDet(id){
   ${c.nt?`<div class="dsec"><div class="dl">Notes</div><div class="dnotes">${c.nt}</div></div>`:''}
   <div class="dsec" style="border:none"><div class="dl">Added</div><div class="dv" style="font-size:12px;color:var(--t3)">${c.created?new Date(c.created).toLocaleString('th-TH'):'–'}</div></div>
   <div class="dacts">
+    ${window.shareActionButtonHTML?window.shareActionButtonHTML(c):''}
     <button class="ab ap" onclick="cls('ov-det');setTimeout(()=>openFU('${c.id}'),180)">📅 Set Follow-up Date</button>
     <button class="ab aw" onclick="openEdit('${c.id}')">✏️ Edit Case</button>
     <button class="ab agr" onclick="starFromDet('${c.id}')">${c.st?'☆ Remove VIP':'⭐ Mark as VIP'}</button>
@@ -92,9 +94,12 @@ async function saveCase(){
     dc:existing.dc||false,
     dcDate:existing.dcDate||null,
     opd:_formOpd,
+    // Preserve Watch My Case hand-off state through edits
+    share:existing.share||null,
     created:existing.created||new Date().toISOString(),
     upd:new Date().toISOString()
   };
+  if(existing._ownerUid){data._ownerUid=existing._ownerUid;data._ownerUsername=existing._ownerUsername;data._shared=true}
   cls('ov-add');
   await window._saveToCloud(data);
   toast(existing.created?'✅ Updated':'✅ Case added');
@@ -160,8 +165,9 @@ async function undc(id){
   toast('↩ Reactivated');
 }
 function del(id){
+  const c=load().find(x=>x.id===id);
   showConf('🗑','Delete case?','This case will be permanently deleted.',
-    'Delete',async()=>{cls('ov-det');if(_picIds.has(id))await picDel(id);await window._deleteFromCloud(id);toast('🗑 Deleted')});
+    'Delete',async()=>{cls('ov-det');if(_picIds.has(id))await picDel(id);await window._deleteFromCloud(id,c&&c._ownerUid);toast('🗑 Deleted')});
 }
 async function toggleOpd(id){
   const c=load().find(x=>x.id===id);if(!c)return;

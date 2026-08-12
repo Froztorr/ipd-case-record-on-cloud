@@ -152,6 +152,7 @@
     <div class="htop">
       <div class="htitle" id="admin-trigger" onclick="adminTap()">Consult <b>E-Record</b></div>
       <div style="display:flex;align-items:center;gap:8px">
+        <button class="hbin" onclick="openWatchInbox()" aria-label="Watch requests" style="background:var(--s2);color:var(--t2);font-size:15px;position:relative">🫱🏻‍🫲🏾<span class="bdg h" id="b-watch" style="position:absolute;top:-4px;right:-4px;min-width:14px;height:14px;font-size:8px;padding:0"></span></button>
         <button class="hbin" onclick="openSettings()" aria-label="Tab settings" style="background:var(--s2);color:var(--t2);font-size:15px">⚙️</button>
         <button class="hbin theme-toggle-btn" onclick="toggleTheme()" aria-label="Toggle Theme">☀️</button>
         <button class="hbin" onclick="confirmClearAll()" aria-label="Clear all data">🗑</button>
@@ -301,6 +302,14 @@
    </div>
   </div>
   <div style="padding:0 16px 16px;border-top:1px solid var(--bo);margin-top:4px">
+   <div style="font-size:11px;color:var(--t3);font-weight:600;text-transform:uppercase;letter-spacing:.4px;padding:14px 0 8px">🫱🏻‍🫲🏾 Watch My Case(s)</div>
+   <div class="set-row">
+    <div style="font-size:14px;font-weight:600">Enable case hand-off</div>
+    <input type="checkbox" class="set-chk" id="watch-enable-chk" onchange="setWatchEnabled(this.checked)">
+   </div>
+   <div style="font-size:11px;color:var(--t3);line-height:1.4;margin-top:4px">Shows a 🫱🏻‍🫲🏾 icon on each case so you can hand off follow-up to a colleague while you're on elective or off service — you can take it back anytime.</div>
+  </div>
+  <div style="padding:0 16px 16px;border-top:1px solid var(--bo);margin-top:4px">
    <div style="font-size:11px;color:var(--t3);font-weight:600;text-transform:uppercase;letter-spacing:.4px;padding:14px 0 8px">Migrate existing records</div>
    <button class="expbtn" style="width:100%;justify-content:center;box-sizing:border-box" onclick="exportCasesExcel()">📤 Export all cases to Excel</button>
    <button class="expbtn" style="width:100%;justify-content:center;box-sizing:border-box" onclick="cls('ov-settings');setTimeout(openImport,180)">📥 Import cases from Google Sheet / Excel / CSV</button>
@@ -345,6 +354,22 @@
   <div class="shdl"></div>
   <div class="shhdr"><div class="shtitle">📥 Import Cases</div><button class="xcls" onclick="cls('ov-import')">✕</button></div>
   <div id="imp-body" style="padding:14px 16px 20px"></div>
+ </div>
+</div>
+
+<div class="ov-wrap" id="ov-watch-send" onclick="bkd(event,'ov-watch-send')">
+ <div class="sheet">
+  <div class="shdl"></div>
+  <div class="shhdr"><div class="shtitle" id="wsend-title">🫱🏻‍🫲🏾 Watch My Case</div><button class="xcls" onclick="cls('ov-watch-send')">✕</button></div>
+  <div id="wsend-body" style="padding:14px 16px 20px"></div>
+ </div>
+</div>
+
+<div class="ov-wrap" id="ov-watch-inbox" onclick="bkd(event,'ov-watch-inbox')">
+ <div class="sheet">
+  <div class="shdl"></div>
+  <div class="shhdr"><div class="shtitle">🫱🏻‍🫲🏾 Watch Requests</div><button class="xcls" onclick="cls('ov-watch-inbox')">✕</button></div>
+  <div id="winbox-body" style="padding:14px 16px 20px"></div>
  </div>
 </div>
 
@@ -396,5 +421,6 @@
 <script src="app1.js"></script>
 <script src="app2.js"></script>
 <script src="app3.js"></script>
+<script src="watch.js"></script>
 </body>
 </html>

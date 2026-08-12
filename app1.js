@@ -51,25 +51,37 @@ function card(c){
     ov?`<span class="fd ov">⚠ Overdue ${fd(c.fu)}</span>`:
     isT?`<span class="fd td">📅 F/U Today</span>`:
     `<span class="fd">F/U ${fd(c.fu)}</span>`;
-  return`<div class="card" onclick="openDet('${c.id}')">
-    <div class="ca" style="background:${TK[c.ty]||'#6c6fff'}"></div>
+  // Watch My Case — a shared-in card (someone handed this off to me) gets a pale
+  // bright blue tint; a case I've handed off to someone else gets pale bright
+  // green on my own side. See card-share styles in styles.css.
+  const shareOn=c.share&&(c.share.status==='pending'||c.share.status==='active');
+  const shareCls=c._shared?' wshare-in':shareOn?' wshare-out':'';
+  const barColor=c._shared?'#38bdf8':c.share&&c.share.status==='active'?'#22c55e':c.share&&c.share.status==='pending'?'var(--am)':(TK[c.ty]||'#6c6fff');
+  const showShareBtn=!c._shared&&(shareOn||(window.watchEnabled&&window.watchEnabled()));
+  return`<div class="card${shareCls}" onclick="openDet('${c.id}')">
+    <div class="ca" style="background:${barColor}"></div>
     <div class="cr1">
       <div class="cn" ontouchstart="nameHoldStart(event,'${c.id}')" ontouchend="nameHoldCancel(event)" ontouchcancel="nameHoldCancel(event)" onmousedown="nameHoldStart(event,'${c.id}')" onmouseup="nameHoldCancel(event)" onmouseleave="nameHoldCancel(event)">${esc(c.nm)||'–'}</div>
       <button class="opd-btn${(c.rem||[]).some(r=>!r.done)?' on':''}" onclick="event.stopPropagation();openRem('${c.id}')" title="Reminders">📝</button>
       <button class="opd-btn${_picIds.has(c.id)?' on':''}" onclick="event.stopPropagation();picClick('${c.id}')" title="Picture">📷</button>
       <button class="opd-btn${c.opd?' on':''}" onclick="event.stopPropagation();toggleOpd('${c.id}')" title="OPD appt set">✅</button>
+      ${showShareBtn?`<button class="opd-btn${shareOn?' on':''}" onclick="event.stopPropagation();openShareSheet('${c.id}')" title="Watch My Case">🫱🏻‍🫲🏾</button>`:''}
       <button class="sbtn${c.st?' on':''}" onclick="event.stopPropagation();star('${c.id}')" aria-label="VIP">★</button>
     </div>
     <div class="cmeta">
       ${c.hn?`<span class="bh bhn">HN ${c.hn}</span>`:''}
       ${c.wd?`<span class="bh bwd">${c.wd}</span>`:''}
       ${c.ty?`<span class="bh btp ${TC[c.ty]||''}">${c.ty}</span>`:''}
+      ${c._shared?`<span class="bh" style="background:rgba(56,189,248,.15);color:#38bdf8">🫱🏻‍🫲🏾 @${esc(c._ownerUsername||'?')}</span>`:''}
+      ${c.share&&c.share.status==='active'?`<span class="bh" style="background:rgba(34,197,94,.15);color:#22c55e">🫱🏻‍🫲🏾 @${esc(c.share.toUsername)}</span>`:''}
+      ${c.share&&c.share.status==='pending'?`<span class="bh" style="background:rgba(245,166,35,.15);color:var(--am)">⏳ @${esc(c.share.toUsername)}</span>`:''}
     </div>
     ${c.dx?`<div class="cdx">${esc(c.dx)}</div>`:''}
     ${c.nt?`<div class="cnotes">${esc(c.nt)}</div>`:''}
     <div class="cfoot">${flab}<div class="cbtns">
       <button class="mb mfu" onclick="event.stopPropagation();openFU('${c.id}')">Set F/U</button>
-      ${c.dc?`<button class="mb mun" onclick="event.stopPropagation();undc('${c.id}')">↩ Reactivate</button>`:
+      ${c._shared?`<button class="mb" style="background:rgba(56,189,248,.18);color:#38bdf8" onclick="event.stopPropagation();giveBackCaseConfirm('${c.id}')">↩ Give back</button>`:
+        c.dc?`<button class="mb mun" onclick="event.stopPropagation();undc('${c.id}')">↩ Reactivate</button>`:
               `<button class="mb mdc" onclick="event.stopPropagation();dc('${c.id}')">Discharge</button>`}
     </div></div>
   </div>`;
@@ -264,12 +276,14 @@ function badges(){
   b('b-opd',all.filter(c=>c.opd).length);
   b('b-rem',all.filter(c=>!c.dc).reduce((n,c)=>n+((c.rem||[]).filter(r=>!r.done).length),0));
   if(window.applyTabPrefs)applyTabPrefs();
+  if(window.renderWatchInbox)window.renderWatchInbox();
 }
 window.badges=badges;
 
 /* ===== UPDATE LOG ===== */
-const UPDATE_LOG_VERSION='2026-08-04-copy-name-v1';
+const UPDATE_LOG_VERSION='2026-08-12-watch-my-case-v1';
 const UPDATE_LOG_ITEMS=[
+  {date:'12/08/26',title:'🫱🏻‍🫲🏾 Watch My Case(s)',desc:'Hand a patient off to a colleague while you\'re on elective or off service. Turn it on in ⚙️ Settings, then tap the handshake icon on any case to send a request — they can follow up and edit, and you\'ll both see the case until they give it back.'},
   {date:'04/08/26',title:'Copy patient name + HN',desc:'Hold a patient name for 1 second to copy “Name HN” to clipboard.'}
 ];
 function updateLogKey(){return _uid?`rehab_update_seen_${_uid}_${UPDATE_LOG_VERSION}`:null}
