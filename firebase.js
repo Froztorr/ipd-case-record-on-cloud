@@ -633,6 +633,16 @@ window._clearAllFromCloud=async()=>{
    editing of a shared case's content still works fully offline via
    _saveSharedCase/_deleteFromCloud above. */
 function myUsername(){return localStorage.getItem('rehab_user')||''}
+// Firestore errors get swallowed into a generic "check connection" message
+// elsewhere in this app, but that's actively misleading for a permission-denied
+// (a Firestore security-rules problem, not a network problem) — surface the
+// real reason so it's diagnosable without opening devtools.
+function watchErrMsg(e){
+  const code=e&&e.code;
+  if(code==='permission-denied')return'⚠ Blocked by Firestore security rules (permission-denied) — see caseShares rule';
+  if(code)return'⚠ Error: '+code;
+  return'⚠ Error — check connection';
+}
 
 window.sendWatchRequest=async function(caseId,toUsernameRaw){
   if(!_uid)return{ok:false,msg:'Not signed in'};
@@ -653,7 +663,7 @@ window.sendWatchRequest=async function(caseId,toUsernameRaw){
     await db.collection('caseShares').doc(id).set(grant);
     await window._saveToCloud({...c,share:{id,status:'pending',toUid,toUsername}});
     return{ok:true,msg:'✅ Request sent to @'+toUsername};
-  }catch(e){console.error(e);return{ok:false,msg:'⚠ Error — check connection'}}
+  }catch(e){console.error(e);return{ok:false,msg:watchErrMsg(e)}}
 };
 
 window.cancelWatchRequest=async function(caseId){
@@ -692,7 +702,7 @@ window.acceptWatchRequest=async function(shareId){
     window.toast&&window.toast('🫱🏻‍🫲🏾 Now watching '+(g.caseNm||'patient'));
     await refreshWatchData(_uid);rebuildCasesView(_uid);
     window.render&&window.render();window.badges&&window.badges();window.renderWatchInbox&&window.renderWatchInbox();
-  }catch(e){console.error(e);window.toast&&window.toast('⚠ Error — check connection')}
+  }catch(e){console.error(e);window.toast&&window.toast(watchErrMsg(e))}
 };
 
 window.declineWatchRequest=async function(shareId){
@@ -709,7 +719,7 @@ window.declineWatchRequest=async function(shareId){
     await refreshWatchData(_uid);rebuildCasesView(_uid);
     window.render&&window.render();window.badges&&window.badges();window.renderWatchInbox&&window.renderWatchInbox();
     window.toast&&window.toast('Declined');
-  }catch(e){console.error(e);window.toast&&window.toast('⚠ Error — check connection')}
+  }catch(e){console.error(e);window.toast&&window.toast(watchErrMsg(e))}
 };
 
 window.giveBackCase=async function(caseId){
@@ -719,7 +729,7 @@ window.giveBackCase=async function(caseId){
   try{
     if(c.share&&c.share.id)await db.collection('caseShares').doc(c.share.id).update({status:'ended',endedAt:new Date().toISOString(),endedBy:'watcher'});
     await db.collection('users').doc(c._ownerUid).collection('cases').doc(c.id).update({share:null});
-  }catch(e){console.warn(e);window.toast&&window.toast('⚠ Error — check connection');return}
+  }catch(e){console.warn(e);window.toast&&window.toast(watchErrMsg(e));return}
   removeFromWatchedCache(_uid,c.id); // already rebuilds window._cases
   window.render&&window.render();window.badges&&window.badges();
   window.toast&&window.toast('↩ Case given back');
