@@ -238,8 +238,28 @@ async function exportCasesExcel(){
   }
 }
 
+/* ===== NOTES CLAMP (long notes collapse to 3 lines with a More/Less toggle) ===== */
+function wireNoteClamps(root){
+  if(!root||!root.querySelectorAll)return;
+  root.querySelectorAll('.cnotes-wrap').forEach(wrap=>{
+    const notes=wrap.querySelector('.cnotes'),btn=wrap.querySelector('.cnotes-toggle');
+    if(!notes||!btn)return;
+    // Only show the toggle if the text is actually being cut off at 3 lines —
+    // short notes render with no button at all.
+    const overflowing=notes.classList.contains('clamp3')?notes.scrollHeight>notes.clientHeight+1:true;
+    wrap.classList.toggle('has-toggle',overflowing);
+  });
+}
+function toggleNotesClamp(btn){
+  const wrap=btn.closest('.cnotes-wrap'),notes=wrap&&wrap.querySelector('.cnotes');
+  if(!notes)return;
+  const collapsing=notes.classList.toggle('clamp3');
+  btn.textContent=collapsing?'More ▾':'Less ▴';
+}
+window.toggleNotesClamp=toggleNotesClamp;
+
 /* ===== UTILS ===== */
-function set(id,h){const e=document.getElementById(id);if(e){e.innerHTML=h;enhanceDates(e);refreshDateOverlays()}}
+function set(id,h){const e=document.getElementById(id);if(e){e.innerHTML=h;enhanceDates(e);refreshDateOverlays();wireNoteClamps(e)}}
 function open(id){const e=document.getElementById(id);e.classList.add('on');enhanceDates(e);refreshDateOverlays()}
 function cls(id){
   const el=document.getElementById(id);if(!el)return;

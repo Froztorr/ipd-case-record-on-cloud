@@ -77,7 +77,7 @@ function card(c){
       ${c.share&&c.share.status==='pending'?`<span class="bh" style="background:rgba(245,166,35,.15);color:var(--am)">⏳ @${esc(c.share.toUsername)}</span>`:''}
     </div>
     ${c.dx?`<div class="cdx">${esc(c.dx)}</div>`:''}
-    ${c.nt?`<div class="cnotes">${esc(c.nt)}</div>`:''}
+    ${c.nt?`<div class="cnotes-wrap"><div class="cnotes clamp3">${esc(c.nt)}</div><button class="cnotes-toggle" onclick="event.stopPropagation();toggleNotesClamp(this)">More ▾</button></div>`:''}
     <div class="cfoot">${flab}<div class="cbtns">
       <button class="mb mfu" onclick="event.stopPropagation();openFU('${c.id}')">Set F/U</button>
       ${c._shared?`<button class="mb" style="background:rgba(56,189,248,.18);color:#38bdf8" onclick="event.stopPropagation();giveBackCaseConfirm('${c.id}')">↩ Give back</button>`:
