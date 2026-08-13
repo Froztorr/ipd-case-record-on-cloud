@@ -196,7 +196,9 @@ function rDcChips(){
   set('dc-chips',chips(TYPES,dcFilter,'setDcFilter'));
 }
 function rDcCards(){
-  let cases=load().filter(c=>c.dc);
+  // Exclude cases I'm just watching for someone else — a discharge I perform on
+  // a handed-off case belongs in the owner's Discharged tab, not mine.
+  let cases=load().filter(c=>c.dc&&!c._shared);
   if(dcSearch){const q=dcSearch.toLowerCase();cases=cases.filter(c=>[c.nm,c.hn,c.wd,c.dx].some(x=>(x||'').toLowerCase().includes(q)))}
   if(dcFilter!=='All')cases=cases.filter(c=>c.ty===dcFilter);
   if(dcFrom||dcTo){cases=cases.filter(c=>{const d=c.dcDate||c.fu||'';return(!dcFrom||d>=dcFrom)&&(!dcTo||d<=dcTo)})}
@@ -271,7 +273,10 @@ function badges(){
   b('b-today',all.filter(c=>!c.dc&&(c.fu===t||(c.fu&&c.fu<t))).length);
   b('b-imp',all.filter(c=>!c.dc&&c.fu&&c.fu>=tom&&c.fu<=we).length);
   b('b-done',all.filter(c=>!c.dc).length);
-  b('b-dc',all.filter(c=>c.dc).length);
+  // Discharged count is per-owner: a case someone handed off to me for coverage
+  // shouldn't inflate MY discharge tally when I discharge it — it belongs on
+  // the owner's side (their own copy of the case has no _shared flag).
+  b('b-dc',all.filter(c=>c.dc&&!c._shared).length);
   b('b-vip',all.filter(c=>c.st).length);
   b('b-opd',all.filter(c=>c.opd).length);
   b('b-rem',all.filter(c=>!c.dc).reduce((n,c)=>n+((c.rem||[]).filter(r=>!r.done).length),0));
